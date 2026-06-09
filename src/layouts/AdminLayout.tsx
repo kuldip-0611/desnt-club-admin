@@ -2,10 +2,37 @@ import type { ReactElement } from 'react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import {
+  LayoutDashboard,
+  Package,
+  Tag,
+  Scissors,
+  Ruler,
+  TicketPercent,
+  Users,
+  UsersRound,
+  LogOut,
+  ShoppingBag,
+  ChevronRight,
+  Layers,
+  ClipboardList,
+  RotateCcw,
+} from 'lucide-react'
+import AppShell from '../components/ui/AppShell'
 import { useAuth } from '../hooks/useAuth'
 
-const linkBase =
-  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150'
+type NavItem = {
+  to: string
+  label: string
+  icon: ReactElement
+  exact?: boolean
+  matchPrefix?: string
+}
+
+type NavSection = {
+  title: string
+  items: NavItem[]
+}
 
 const AdminLayout = (): ReactElement => {
   const navigate = useNavigate()
@@ -14,9 +41,7 @@ const AdminLayout = (): ReactElement => {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
-    queueMicrotask(() => {
-      setMobileOpen(false)
-    })
+    queueMicrotask(() => setMobileOpen(false))
   }, [location.pathname])
 
   const handleLogout = () => {
@@ -25,214 +50,126 @@ const AdminLayout = (): ReactElement => {
     navigate('/login', { replace: true })
   }
 
-  const isCatalogListOrEdit =
-    location.pathname === '/dashboard/products' ||
-    location.pathname === '/dashboard/products/new' ||
-    /^\/dashboard\/products\/[^/]+\/edit$/.test(location.pathname)
+  const checkActive = (item: NavItem): boolean => {
+    if (item.exact) return location.pathname === item.to
+    if (item.matchPrefix) return location.pathname.startsWith(item.matchPrefix)
+    return location.pathname === item.to || location.pathname.startsWith(item.to + '/')
+  }
 
-  const isProductCategoriesSection = location.pathname.startsWith('/dashboard/product-categories')
-
-  const isFabricsSection = location.pathname.startsWith('/dashboard/fabrics')
-
-  const isCouponsSection = location.pathname.startsWith('/dashboard/coupons')
-
-  const isSizingSection =
-    location.pathname.startsWith('/dashboard/measurement-attributes') ||
-    location.pathname.startsWith('/dashboard/sizes')
+  const navSections: NavSection[] = [
+    {
+      title: 'Overview',
+      items: [
+        { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} />, exact: true },
+      ],
+    },
+    {
+      title: 'Catalog',
+      items: [
+        { to: '/dashboard/products', label: 'Products', icon: <Package size={18} />, matchPrefix: '/dashboard/products' },
+        { to: '/dashboard/product-categories', label: 'Categories', icon: <Layers size={18} />, matchPrefix: '/dashboard/product-categories' },
+        { to: '/dashboard/fabrics', label: 'Fabrics', icon: <Scissors size={18} />, matchPrefix: '/dashboard/fabrics' },
+      ],
+    },
+    {
+      title: 'Sizing',
+      items: [
+        { to: '/dashboard/measurement-attributes', label: 'Measurements', icon: <Ruler size={18} />, matchPrefix: '/dashboard/measurement-attributes' },
+        { to: '/dashboard/sizes', label: 'Sizes', icon: <Tag size={18} />, matchPrefix: '/dashboard/sizes' },
+      ],
+    },
+    {
+      title: 'Orders',
+      items: [
+        { to: '/dashboard/orders', label: 'All Orders', icon: <ClipboardList size={18} />, matchPrefix: '/dashboard/orders' },
+        { to: '/dashboard/returns', label: 'Returns', icon: <RotateCcw size={18} />, matchPrefix: '/dashboard/returns' },
+      ],
+    },
+    {
+      title: 'Promotions',
+      items: [
+        { to: '/dashboard/coupons', label: 'Coupons', icon: <TicketPercent size={18} />, matchPrefix: '/dashboard/coupons' },
+      ],
+    },
+    {
+      title: 'Accounts',
+      items: [
+        { to: '/dashboard/users', label: 'Users', icon: <Users size={18} />, matchPrefix: '/dashboard/users' },
+        { to: '/dashboard/user-groups', label: 'User Groups', icon: <UsersRound size={18} />, matchPrefix: '/dashboard/user-groups' },
+      ],
+    },
+  ]
 
   const sidebarNav = (
-    <>
-      <div className="border-b border-slate-700/80 px-4 py-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Desent Club</p>
-        <p className="mt-1 text-lg font-bold tracking-tight text-white">Admin</p>
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-3 border-b border-white/10 px-5 py-5">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 shadow-lg shadow-indigo-900/50">
+          <ShoppingBag size={18} className="text-white" />
+        </div>
+        <div>
+          <p className="text-sm font-bold tracking-tight text-white">Desent Club</p>
+          <p className="text-[10px] font-medium uppercase tracking-widest text-indigo-400">Admin Panel</p>
+        </div>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 p-3">
-        <p className="mb-1 px-3 pt-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-          Overview
-        </p>
-        <NavLink
-          to="/dashboard"
-          end
-          className={({ isActive }) =>
-            `${linkBase} ${
-              isActive
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-            }`
-          }
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-base" aria-hidden>
-            ◎
-          </span>
-          Dashboard
-        </NavLink>
-
-        <p className="mb-1 mt-6 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-          Products
-        </p>
-        <NavLink
-          to="/dashboard/products"
-          className={() =>
-            `${linkBase} ${
-              isCatalogListOrEdit
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-            }`
-          }
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-base" aria-hidden>
-            ☰
-          </span>
-          All products
-        </NavLink>
-        <NavLink
-          to="/dashboard/product-categories"
-          className={() =>
-            `${linkBase} ${
-              isProductCategoriesSection
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-            }`
-          }
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-xs font-bold" aria-hidden>
-            C
-          </span>
-          Categories
-        </NavLink>
-        <NavLink
-          to="/dashboard/fabrics"
-          className={() =>
-            `${linkBase} ${
-              isFabricsSection
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-            }`
-          }
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-xs font-bold" aria-hidden>
-            F
-          </span>
-          Fabrics
-        </NavLink>
-
-        <p className="mb-1 mt-6 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-          Sizing
-        </p>
-        <NavLink
-          to="/dashboard/measurement-attributes"
-          className={() =>
-            `${linkBase} ${
-              isSizingSection && location.pathname.startsWith('/dashboard/measurement-attributes')
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-            }`
-          }
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-xs font-bold" aria-hidden>
-            ⌖
-          </span>
-          Measurements
-        </NavLink>
-        <NavLink
-          to="/dashboard/sizes"
-          className={() =>
-            `${linkBase} ${
-              isSizingSection && location.pathname.startsWith('/dashboard/sizes')
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-            }`
-          }
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-xs font-bold" aria-hidden>
-            S
-          </span>
-          Sizes
-        </NavLink>
-
-        <p className="mb-1 mt-6 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-          Promotions
-        </p>
-        <NavLink
-          to="/dashboard/coupons"
-          className={() =>
-            `${linkBase} ${
-              isCouponsSection
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-            }`
-          }
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-base" aria-hidden>
-            %
-          </span>
-          Coupons
-        </NavLink>
+      <nav className="flex flex-1 flex-col overflow-y-auto px-3 py-4">
+        {navSections.map((section) => (
+          <div key={section.title} className="mb-5">
+            <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              {section.title}
+            </p>
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const active = checkActive(item)
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.exact}
+                    className={() =>
+                      `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
+                        active
+                          ? 'bg-indigo-600/20 text-indigo-300 ring-1 ring-indigo-500/30'
+                          : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                      }`
+                    }
+                  >
+                    <span className={`shrink-0 transition-colors ${active ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`}>
+                      {item.icon}
+                    </span>
+                    <span className="flex-1">{item.label}</span>
+                    {active && <ChevronRight size={13} className="text-indigo-500 opacity-70" />}
+                  </NavLink>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      <div className="border-t border-slate-700/80 p-3">
+      <div className="border-t border-white/10 p-3">
         <button
           type="button"
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-red-500/10 hover:text-red-400"
         >
-          <span className="text-base" aria-hidden>
-            →
-          </span>
-          Log out
+          <LogOut size={16} />
+          <span>Log out</span>
         </button>
       </div>
-    </>
+    </div>
   )
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
-      {/* Mobile overlay */}
-      {mobileOpen ? (
-        <button
-          type="button"
-          aria-label="Close menu"
-          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      ) : null}
-
-      {/* Sidebar — desktop fixed, mobile drawer */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-slate-700/50 bg-slate-900 transition-transform duration-200 ease-out lg:translate-x-0 ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
-      >
-        {sidebarNav}
-      </aside>
-
-      {/* Main */}
-      <div className="flex min-h-screen flex-1 flex-col lg:pl-64">
-        {/* Mobile top bar */}
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm lg:hidden">
-          <button
-            type="button"
-            aria-label="Open menu"
-            className="rounded-lg border border-slate-200 p-2 text-slate-700 hover:bg-slate-50"
-            onClick={() => setMobileOpen(true)}
-          >
-            <span className="flex flex-col gap-1" aria-hidden>
-              <span className="block h-0.5 w-5 rounded-full bg-current" />
-              <span className="block h-0.5 w-5 rounded-full bg-current" />
-              <span className="block h-0.5 w-5 rounded-full bg-current" />
-            </span>
-          </button>
-          <span className="font-semibold text-slate-900">Desent Club</span>
-        </header>
-
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
-          <div className="mx-auto max-w-7xl">
-            <Outlet />
-          </div>
-        </main>
-      </div>
-    </div>
+    <AppShell
+      sidebar={sidebarNav}
+      mobileHeaderTitle="Desent Club"
+      mobileOpen={mobileOpen}
+      onMobileOpen={() => setMobileOpen(true)}
+      onMobileClose={() => setMobileOpen(false)}
+    >
+      <Outlet />
+    </AppShell>
   )
 }
 

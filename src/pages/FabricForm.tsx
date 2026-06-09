@@ -4,6 +4,7 @@ import { Field, Form, Formik, ErrorMessage } from 'formik'
 import { Link, useMatch, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import * as Yup from 'yup'
+import FormField from '../components/ui/FormField'
 import { createFabric, getFabric, updateFabric } from '../services/fabrics'
 
 const schema = Yup.object({
@@ -12,14 +13,12 @@ const schema = Yup.object({
     .required('Slug is required')
     .matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, numbers, hyphens only'),
   name: Yup.string().trim().required('Name is required').max(120),
-  sortOrder: Yup.number().integer().min(0),
   isActive: Yup.boolean().required(),
 })
 
 type FormValues = {
   slug: string
   name: string
-  sortOrder: number
   isActive: boolean
 }
 
@@ -62,11 +61,10 @@ const FabricForm = (): ReactElement => {
   }
 
   const initialValues: FormValues = isCreate
-    ? { slug: '', name: '', sortOrder: 0, isActive: true }
+    ? { slug: '', name: '', isActive: true }
     : {
         slug: existing?.slug ?? '',
         name: existing?.name ?? '',
-        sortOrder: existing?.sortOrder ?? 0,
         isActive: existing?.isActive ?? true,
       }
 
@@ -90,7 +88,6 @@ const FabricForm = (): ReactElement => {
           const payload = {
             slug: values.slug.trim(),
             name: values.name.trim(),
-            sortOrder: values.sortOrder,
             isActive: values.isActive,
           }
           if (isCreate) {
@@ -102,35 +99,16 @@ const FabricForm = (): ReactElement => {
       >
         {({ isSubmitting, dirty, isValid }) => (
           <Form className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Slug</label>
+            <FormField label="Slug" error={<ErrorMessage name="slug" />}>
               <Field
                 name="slug"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm"
                 placeholder="cotton"
               />
-              <p className="mt-1 text-xs text-red-600">
-                <ErrorMessage name="slug" />
-              </p>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Display name</label>
+            </FormField>
+            <FormField label="Display name" error={<ErrorMessage name="name" />}>
               <Field name="name" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-              <p className="mt-1 text-xs text-red-600">
-                <ErrorMessage name="name" />
-              </p>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Sort order</label>
-              <Field
-                name="sortOrder"
-                type="number"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                Lower numbers appear first in product fabric dropdowns.
-              </p>
-            </div>
+            </FormField>
             <div className="flex items-center gap-2">
               <Field
                 name="isActive"

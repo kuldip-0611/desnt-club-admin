@@ -1,12 +1,17 @@
 import type { ReactElement } from 'react'
-import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
+import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
+import FilterBar from '../components/ui/FilterBar'
+import KpiCard from '../components/ui/KpiCard'
+import { useDebounce } from '../hooks/useDebounce'
 import {
   deleteProduct,
   listProducts,
+  type PaginatedProductsResponse,
   productImageUrl,
   updateProduct,
 } from '../services/products'
@@ -24,28 +29,207 @@ const LOW_STOCK_THRESHOLD = 5
 const Products = (): ReactElement => {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search.trim(), 350)
+  const pageSize = 20
   const [productToDelete, setProductToDelete] = useState<Product | null>(null)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
 
-  const { data: products, isLoading, isError } = useQuery({
-    queryKey: ['admin-products'],
-    queryFn: listProducts,
+  const { data, isLoading, isError, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
+    queryKey: ['admin-products-infinite', pageSize, debouncedSearch],
+    queryFn: ({ pageParam = 1 }) =>
+      listProducts({
+        page: pageParam as number,
+        limit: pageSize,
+        search: debouncedSearch || undefined,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage: PaginatedProductsResponse) =>
+      lastPage.hasNextPage ? lastPage.page + 1 : undefined,
   })
 
-  const stats = useMemo(() => {
-    const list = products ?? []
-    return {
-      total: list.length,
-      available: list.filter((p) => p.isAvailable).length,
-      lowStock: list.filter((p) => p.quantity <= LOW_STOCK_THRESHOLD).length,
-    }
-  }, [products])
+  const products = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
+    [data?.pages],
+  )
+  const stats = data?.pages[0]?.summary ?? { total: 0, available: 0, lowStock: 0 }
+  const totalPages = data?.pages[0]?.totalPages ?? 1
+  const loadedPages = data?.pages.length ?? 1
+  const totalItems = data?.pages[0]?.total ?? 0
 
-  const filteredProducts = useMemo(() => {
-    if (!products?.length) return []
-    const q = search.trim().toLowerCase()
-    if (!q) return products
-    return products.filter((p) => p.name.toLowerCase().includes(q))
-  }, [products, search])
+  const handleObserver = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      const target = entries[0]
+      if (target?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage()
+      }
+    },
+    [fetchNextPage, hasNextPage, isFetchingNextPage],
+  )
+
+  useEffect(() => {
+    if (!sentinelRef.current) return
+    const observer = new IntersectionObserver(handleObserver, {
+      root: null,
+      rootMargin: '240px',
+      threshold: 0.1,
+    })
+    observer.observe(sentinelRef.current)
+    return () => observer.disconnect()
+  }, [handleObserver])
+
+  const columns: DataTableColumn<Product>[] = [
+    {
+      key: 'image',
+      header: 'Image',
+      className: 'pl-6',
+      cellClassName: 'whitespace-nowrap pl-6',
+      render: (p) =>
+        p.images[0] ? (
+          <img
+            src={productImageUrl(p.images[0].path)}
+            alt=""
+            className="h-14 w-14 rounded-xl border border-slate-200 object-cover shadow-sm"
+          />
+        ) : (
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-400">
+            No img
+          </div>
+        ),
+    },
+    {
+      key: 'product',
+      header: 'Product',
+      cellClassName: 'max-w-xs',
+      render: (p) => {
+        const fabLabel = fabricDisplay(p)
+        return (
+          <>
+            <p className="font-semibold text-slate-900">{p.name}</p>
+            <p className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                {p.audience === 'MEN' ? 'Men' : p.audience === 'WOMEN' ? 'Women' : 'Unisex'}
+              </span>
+              {p.color ? (
+                <span className="inline-flex items-center gap-1.5">
+                  {/^#[0-9A-Fa-f]{6}$/i.test(p.color.trim()) ? (
+                    <span
+                      className="h-3.5 w-3.5 shrink-0 rounded border border-slate-300 shadow-inner"
+                      style={{ backgroundColor: p.color.trim() }}
+                      title={p.color.trim()}
+                    />
+                  ) : null}
+                  <span className="text-xs font-medium text-slate-600">{p.color}</span>
+                </span>
+              ) : null}
+              {fabLabel ? (
+                <span className="line-clamp-1 text-xs text-slate-500" title={fabLabel}>
+                  {fabLabel}
+                </span>
+              ) : null}
+            </p>
+            {p.description ? <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{p.description}</p> : null}
+          </>
+        )
+      },
+    },
+    {
+      key: 'category',
+      header: 'Category',
+      render: (p) => (
+        <span className="text-sm text-slate-700">
+          {p.category?.name ?? '—'}
+          {p.subcategory?.name ? (
+            <span className="mt-0.5 block text-xs text-slate-500">{p.subcategory.name}</span>
+          ) : null}
+        </span>
+      ),
+    },
+    {
+      key: 'price',
+      header: 'Price',
+      render: (p) =>
+        (p.discountPercent ?? 0) >= 1 && p.salePrice != null && p.salePrice < p.price ? (
+          <span className="inline-flex flex-col gap-0.5">
+            <span className="text-xs font-normal text-slate-400 line-through">${p.price.toFixed(2)}</span>
+            <span className="font-medium text-emerald-700">${p.salePrice.toFixed(2)}</span>
+            <span className="text-[10px] font-semibold uppercase text-rose-600">{p.discountPercent}% off</span>
+          </span>
+        ) : (
+          <span className="font-medium tabular-nums text-slate-800">${p.price.toFixed(2)}</span>
+        ),
+    },
+    {
+      key: 'qty',
+      header: 'Qty',
+      cellClassName: 'max-w-[140px]',
+      render: (p) => (
+        <>
+          <span
+            className={`inline-flex tabular-nums font-medium ${
+              p.quantity <= LOW_STOCK_THRESHOLD ? 'text-amber-700' : 'text-slate-800'
+            }`}
+          >
+            {p.quantity}
+            {p.quantity <= LOW_STOCK_THRESHOLD ? (
+              <span className="ml-1.5 text-xs font-normal text-amber-600">low</span>
+            ) : null}
+          </span>
+          {p.variants?.length ? (
+            <span className="mt-1 block text-[10px] leading-snug text-slate-500">
+              {p.variants
+                .slice()
+                .sort((a, b) => a.size.localeCompare(b.size, undefined, { sensitivity: 'base' }))
+                .map((v) => `${v.size}: ${v.quantity}`)
+                .join(' · ')}
+            </span>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (p) => (
+        <button
+          type="button"
+          onClick={() => handleToggle(p)}
+          disabled={toggleMutation.isPending}
+          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold transition disabled:opacity-50 ${
+            p.isAvailable
+              ? 'bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-600/20 hover:bg-emerald-200'
+              : 'bg-slate-200 text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-300'
+          }`}
+        >
+          <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${p.isAvailable ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+          {p.isAvailable ? 'Available' : 'Unavailable'}
+        </button>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'text-right pr-6',
+      cellClassName: 'text-right pr-6',
+      render: (p) => (
+        <div className="flex justify-end gap-2">
+          <Link
+            to={`/dashboard/products/${p.id}/edit`}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            Edit
+          </Link>
+          <button
+            type="button"
+            onClick={() => handleDelete(p)}
+            disabled={deleteMutation.isPending}
+            className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+          >
+            Delete
+          </button>
+        </div>
+      ),
+    },
+  ]
 
   const deleteMutation = useMutation({
     mutationFn: deleteProduct,
@@ -113,36 +297,18 @@ const Products = (): ReactElement => {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total SKUs</p>
-          <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{stats.total}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Available</p>
-          <p className="mt-2 text-3xl font-bold tabular-nums text-emerald-600">{stats.available}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Low stock (≤{LOW_STOCK_THRESHOLD})
-          </p>
-          <p className="mt-2 text-3xl font-bold tabular-nums text-amber-600">{stats.lowStock}</p>
-        </div>
+        <KpiCard label="Total SKUs" value={stats.total} />
+        <KpiCard label="Available" value={stats.available} tone="success" />
+        <KpiCard label={`Low stock (≤${LOW_STOCK_THRESHOLD})`} value={stats.lowStock} tone="warning" />
       </div>
 
       {/* Search */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <label htmlFor="product-search" className="sr-only">
-          Search products
-        </label>
-        <input
-          id="product-search"
-          type="search"
-          placeholder="Search by product name…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-        />
-      </div>
+      <FilterBar
+        searchId="product-search"
+        searchPlaceholder="Search by product name…"
+        searchValue={search}
+        onSearchChange={setSearch}
+      />
 
       {/* Table */}
       {!products?.length ? (
@@ -157,179 +323,24 @@ const Products = (): ReactElement => {
           </Link>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead>
-                <tr className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
-                  <th scope="col" className="whitespace-nowrap px-4 py-4 pl-6">
-                    Image
-                  </th>
-                  <th scope="col" className="whitespace-nowrap px-4 py-4">
-                    Product
-                  </th>
-                  <th scope="col" className="whitespace-nowrap px-4 py-4">
-                    Category
-                  </th>
-                  <th scope="col" className="whitespace-nowrap px-4 py-4">
-                    Price
-                  </th>
-                  <th scope="col" className="whitespace-nowrap px-4 py-4">
-                    Qty
-                  </th>
-                  <th scope="col" className="whitespace-nowrap px-4 py-4">
-                    Status
-                  </th>
-                  <th scope="col" className="whitespace-nowrap px-4 py-4 text-right pr-6">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredProducts.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
-                      No products match “{search}”.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredProducts.map((p) => {
-                    const fabLabel = fabricDisplay(p)
-                    return (
-                    <tr key={p.id} className="transition hover:bg-slate-50/90">
-                      <td className="whitespace-nowrap px-4 py-4 pl-6">
-                        {p.images[0] ? (
-                          <img
-                            src={productImageUrl(p.images[0].path)}
-                            alt=""
-                            className="h-14 w-14 rounded-xl border border-slate-200 object-cover shadow-sm"
-                          />
-                        ) : (
-                          <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-400">
-                            No img
-                          </div>
-                        )}
-                      </td>
-                      <td className="max-w-xs px-4 py-4">
-                        <p className="font-semibold text-slate-900">{p.name}</p>
-                        <p className="mt-1 flex flex-wrap items-center gap-1.5">
-                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
-                            {p.audience === 'MEN'
-                              ? 'Men'
-                              : p.audience === 'WOMEN'
-                                ? 'Women'
-                                : 'Unisex'}
-                          </span>
-                          {p.color ? (
-                            <span className="inline-flex items-center gap-1.5">
-                              {/^#[0-9A-Fa-f]{6}$/i.test(p.color.trim()) ? (
-                                <span
-                                  className="h-3.5 w-3.5 shrink-0 rounded border border-slate-300 shadow-inner"
-                                  style={{ backgroundColor: p.color.trim() }}
-                                  title={p.color.trim()}
-                                />
-                              ) : null}
-                              <span className="text-xs font-medium text-slate-600">{p.color}</span>
-                            </span>
-                          ) : null}
-                          {fabLabel ? (
-                            <span className="line-clamp-1 text-xs text-slate-500" title={fabLabel}>
-                              {fabLabel}
-                            </span>
-                          ) : null}
-                        </p>
-                        {p.description ? (
-                          <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{p.description}</p>
-                        ) : null}
-                        <p className="mt-1 text-xs text-slate-400">
-                          Updated {new Date(p.updatedAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
-                        </p>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-700">
-                        {p.category?.name ?? '—'}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 font-medium tabular-nums text-slate-800">
-                        {(p.discountPercent ?? 0) >= 1 && p.salePrice != null && p.salePrice < p.price ? (
-                          <span className="inline-flex flex-col gap-0.5">
-                            <span className="text-xs font-normal text-slate-400 line-through">
-                              ${p.price.toFixed(2)}
-                            </span>
-                            <span className="text-emerald-700">${p.salePrice.toFixed(2)}</span>
-                            <span className="text-[10px] font-semibold uppercase text-rose-600">
-                              {p.discountPercent}% off
-                            </span>
-                          </span>
-                        ) : (
-                          `$${p.price.toFixed(2)}`
-                        )}
-                      </td>
-                      <td className="max-w-[140px] px-4 py-4">
-                        <span
-                          className={`inline-flex tabular-nums font-medium ${
-                            p.quantity <= LOW_STOCK_THRESHOLD ? 'text-amber-700' : 'text-slate-800'
-                          }`}
-                        >
-                          {p.quantity}
-                          {p.quantity <= LOW_STOCK_THRESHOLD ? (
-                            <span className="ml-1.5 text-xs font-normal text-amber-600">low</span>
-                          ) : null}
-                        </span>
-                        {p.variants?.length ? (
-                          <span className="mt-1 block text-[10px] leading-snug text-slate-500">
-                            {p.variants
-                              .slice()
-                              .sort((a, b) => a.size.localeCompare(b.size, undefined, { sensitivity: 'base' }))
-                              .map((v) => `${v.size}: ${v.quantity}`)
-                              .join(' · ')}
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4">
-                        <button
-                          type="button"
-                          onClick={() => handleToggle(p)}
-                          disabled={toggleMutation.isPending}
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold transition disabled:opacity-50 ${
-                            p.isAvailable
-                              ? 'bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-600/20 hover:bg-emerald-200'
-                              : 'bg-slate-200 text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-300'
-                          }`}
-                        >
-                          <span
-                            className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-                              p.isAvailable ? 'bg-emerald-500' : 'bg-slate-500'
-                            }`}
-                          />
-                          {p.isAvailable ? 'Available' : 'Unavailable'}
-                        </button>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-right pr-6">
-                        <div className="flex justify-end gap-2">
-                          <Link
-                            to={`/dashboard/products/${p.id}/edit`}
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                          >
-                            Edit
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(p)}
-                            disabled={deleteMutation.isPending}
-                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable
+          columns={columns}
+          rows={products}
+          rowKey={(row) => row.id}
+          emptyText={debouncedSearch ? `No products match "${debouncedSearch}".` : 'No products yet.'}
+        />
       )}
+      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+        <span className="text-slate-600">
+          Loaded {loadedPages} / {totalPages} pages · {products.length} / {totalItems} products
+        </span>
+        <span className="text-xs font-medium text-slate-500">
+          {hasNextPage ? 'Scroll to load more' : 'All products loaded'}
+        </span>
+      </div>
+      <div ref={sentinelRef} className="flex h-12 items-center justify-center text-xs text-slate-500">
+        {isFetchingNextPage ? 'Loading more products...' : hasNextPage ? 'Keep scrolling...' : 'No more products'}
+      </div>
       <ConfirmDeleteModal
         isOpen={productToDelete != null}
         title="Delete product"

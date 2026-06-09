@@ -4,6 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
+import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
+import FilterBar from '../components/ui/FilterBar'
+import KpiCard from '../components/ui/KpiCard'
 import { deleteCoupon, listCoupons, updateCoupon } from '../services/coupons'
 import type { Coupon } from '../types/coupon'
 
@@ -78,6 +81,80 @@ const Coupons = (): ReactElement => {
     toggleMutation.mutate({ id: c.id, isActive: !c.isActive })
   }
 
+  const columns: DataTableColumn<Coupon>[] = [
+    {
+      key: 'code',
+      header: 'Code',
+      render: (c) => <span className="font-mono font-semibold text-slate-900">{c.code}</span>,
+    },
+    {
+      key: 'discount',
+      header: 'Discount',
+      render: (c) => (
+        <span className="text-slate-700">
+          {c.discountType === 'PERCENT' ? `${formatMoney(c.value)}%` : `$${formatMoney(c.value)}`}
+          {c.discountType === 'PERCENT' && c.maxDiscount ? (
+            <span className="ml-1 text-xs text-slate-500">(max ${formatMoney(c.maxDiscount)})</span>
+          ) : null}
+        </span>
+      ),
+    },
+    {
+      key: 'uses',
+      header: 'Uses',
+      render: (c) => (
+        <span className="tabular-nums text-slate-700">
+          {c.usedCount}
+          {c.usageLimit != null ? ` / ${c.usageLimit}` : ' / ∞'}
+        </span>
+      ),
+    },
+    {
+      key: 'ends',
+      header: 'Ends',
+      render: (c) => <span className="text-slate-600">{formatDate(c.endsAt)}</span>,
+    },
+    {
+      key: 'active',
+      header: 'Active',
+      render: (c) => (
+        <button
+          type="button"
+          onClick={() => handleToggle(c)}
+          disabled={toggleMutation.isPending}
+          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+            c.isActive ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+          }`}
+        >
+          {c.isActive ? 'On' : 'Off'}
+        </button>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'text-right',
+      cellClassName: 'text-right',
+      render: (c) => (
+        <>
+          <Link
+            to={`/dashboard/coupons/${c.id}/edit`}
+            className="mr-2 inline-flex text-sm font-semibold text-indigo-600 hover:text-indigo-500"
+          >
+            Edit
+          </Link>
+          <button
+            type="button"
+            onClick={() => handleDelete(c)}
+            className="text-sm font-semibold text-red-600 hover:text-red-500"
+          >
+            Delete
+          </button>
+        </>
+      ),
+    },
+  ]
+
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center rounded-2xl border border-slate-200 bg-white">
@@ -117,98 +194,28 @@ const Coupons = (): ReactElement => {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total codes</p>
-          <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{stats.total}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Active</p>
-          <p className="mt-2 text-3xl font-bold tabular-nums text-emerald-600">{stats.active}</p>
-        </div>
+        <KpiCard label="Total codes" value={stats.total} />
+        <KpiCard label="Active" value={stats.active} tone="success" />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by code…"
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-        />
-      </div>
+      <FilterBar
+        searchId="coupon-search"
+        searchPlaceholder="Search by code…"
+        searchValue={search}
+        onSearchChange={setSearch}
+      />
 
       {filtered.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-white px-8 py-16 text-center">
           <p className="text-sm font-medium text-slate-600">No coupons match your search.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-              <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">Code</th>
-                  <th className="px-4 py-3">Discount</th>
-                  <th className="px-4 py-3">Uses</th>
-                  <th className="px-4 py-3">Ends</th>
-                  <th className="px-4 py-3">Active</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filtered.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50/80">
-                    <td className="px-4 py-3 font-mono font-semibold text-slate-900">{c.code}</td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {c.discountType === 'PERCENT'
-                        ? `${formatMoney(c.value)}%`
-                        : `$${formatMoney(c.value)}`}
-                      {c.discountType === 'PERCENT' && c.maxDiscount ? (
-                        <span className="ml-1 text-xs text-slate-500">
-                          (max ${formatMoney(c.maxDiscount)})
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3 tabular-nums text-slate-700">
-                      {c.usedCount}
-                      {c.usageLimit != null ? ` / ${c.usageLimit}` : ' / ∞'}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{formatDate(c.endsAt)}</td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleToggle(c)}
-                        disabled={toggleMutation.isPending}
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          c.isActive
-                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                            : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                        }`}
-                      >
-                        {c.isActive ? 'On' : 'Off'}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        to={`/dashboard/coupons/${c.id}/edit`}
-                        className="mr-2 inline-flex text-sm font-semibold text-indigo-600 hover:text-indigo-500"
-                      >
-                        Edit
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(c)}
-                        className="text-sm font-semibold text-red-600 hover:text-red-500"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable
+          columns={columns}
+          rows={filtered}
+          rowKey={(row) => row.id}
+          emptyText={search ? `No coupons match "${search}".` : 'No coupons found.'}
+        />
       )}
       <ConfirmDeleteModal
         isOpen={couponToDelete != null}

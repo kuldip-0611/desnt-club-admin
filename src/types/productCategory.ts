@@ -2,17 +2,26 @@ export type ProductCategory = {
   id: string
   slug: string
   name: string
-  sortOrder: number
+  image: string | null
   isActive: boolean
   createdAt: string
   updatedAt: string
+  _count?: {
+    subcategories: number
+    products: number
+  }
 }
 
 export type CreateProductCategoryPayload = {
   slug: string
   name: string
-  sortOrder?: number
+  image: File
   isActive?: boolean
 }
 
-export type UpdateProductCategoryPayload = Partial<CreateProductCategoryPayload>
+export type UpdateProductCategoryPayload = {
+  slug?: string
+  name?: string
+  image?: File
+  isActive?: boolean
+}

@@ -4,6 +4,7 @@ export type ProductImage = {
   id: string
   productId?: string
   path: string
+  color?: string
   sortOrder: number
   createdAt?: string
 }
@@ -23,6 +24,13 @@ export type ProductCategorySummary = {
   id: string
   name: string
   slug: string
+}
+
+export type ProductCategorySubcategorySummary = {
+  id: string
+  name: string
+  slug: string
+  categoryId: string
 }
 
 export type FabricSummary = {
@@ -51,6 +59,7 @@ export type ProductVariant = {
   id: string
   productId: string
   size: string
+  color: string
   sizeId: string | null
   quantity: number
   createdAt: string
@@ -64,6 +73,8 @@ export type Product = {
   description: string | null
   categoryId: string | null
   category: ProductCategorySummary | null
+  subcategoryId: string | null
+  subcategory: ProductCategorySubcategorySummary | null
   price: number
   /** 1–100 when a discount is active; null if none */
   discountPercent: number | null
@@ -94,7 +105,8 @@ export type UpdateProductPayload = {
   /** Replaces linked measurements; [] = none. Non-empty requires catalog size + values on each size. */
   measurementAttributeIds?: string[]
   categoryId?: string | null
+  subcategoryId?: string | null
   isAvailable?: boolean
   discountPercent?: number | null
-  variants?: { size: string; quantity: number; sizeId?: string }[]
+  variants?: { size: string; color: string; quantity: number; sizeId?: string }[]
 }

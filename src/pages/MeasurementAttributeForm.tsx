@@ -4,6 +4,7 @@ import { Field, Form, Formik, ErrorMessage } from 'formik'
 import { Link, useMatch, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import * as Yup from 'yup'
+import FormField from '../components/ui/FormField'
 import {
   createMeasurementAttribute,
   getMeasurementAttribute,
@@ -17,7 +18,6 @@ const schema = Yup.object({
     .matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, numbers, hyphens only'),
   label: Yup.string().trim().required('Label is required').max(120),
   unit: Yup.string().oneOf(['', 'cm', 'in'], 'Pick a unit or leave as none'),
-  sortOrder: Yup.number().integer().min(0),
   isActive: Yup.boolean().required(),
 })
 
@@ -25,7 +25,6 @@ type FormValues = {
   slug: string
   label: string
   unit: '' | 'cm' | 'in'
-  sortOrder: number
   isActive: boolean
 }
 
@@ -76,12 +75,11 @@ const MeasurementAttributeForm = (): ReactElement => {
   }
 
   const initialValues: FormValues = isCreate
-    ? { slug: '', label: '', unit: '', sortOrder: 0, isActive: true }
+    ? { slug: '', label: '', unit: '', isActive: true }
     : {
         slug: existing?.slug ?? '',
         label: existing?.label ?? '',
         unit: normalizeMeasurementUnit(existing?.unit ?? ''),
-        sortOrder: existing?.sortOrder ?? 0,
         isActive: existing?.isActive ?? true,
       }
 
@@ -107,7 +105,6 @@ const MeasurementAttributeForm = (): ReactElement => {
             slug: values.slug.trim(),
             label: values.label.trim(),
             unit: unitPayload,
-            sortOrder: values.sortOrder,
             isActive: values.isActive,
           }
           if (isCreate) {
@@ -120,30 +117,22 @@ const MeasurementAttributeForm = (): ReactElement => {
       >
         {({ isSubmitting, dirty, isValid }) => (
           <Form className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Slug (API key)</label>
+            <FormField
+              label="Slug (API key)"
+              error={<ErrorMessage name="slug" />}
+              hint={!isCreate ? 'Slug cannot be changed after creation.' : undefined}
+            >
               <Field
                 name="slug"
                 disabled={!isCreate}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm disabled:bg-slate-100"
                 placeholder="chest"
               />
-              <p className="mt-1 text-xs text-red-600">
-                <ErrorMessage name="slug" />
-              </p>
-              {!isCreate ? (
-                <p className="mt-1 text-xs text-slate-500">Slug cannot be changed after creation.</p>
-              ) : null}
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Display label</label>
+            </FormField>
+            <FormField label="Display label" error={<ErrorMessage name="label" />}>
               <Field name="label" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-              <p className="mt-1 text-xs text-red-600">
-                <ErrorMessage name="label" />
-              </p>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Unit</label>
+            </FormField>
+            <FormField label="Unit" hint="Shown next to this field on size charts (e.g. Chest (cm)).">
               <Field
                 as="select"
                 name="unit"
@@ -153,16 +142,7 @@ const MeasurementAttributeForm = (): ReactElement => {
                 <option value="cm">Centimetres (cm)</option>
                 <option value="in">Inches (in)</option>
               </Field>
-              <p className="mt-1 text-xs text-slate-500">Shown next to this field on size charts (e.g. Chest (cm)).</p>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Sort order</label>
-              <Field name="sortOrder" type="number" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-              <p className="mt-1 text-xs text-slate-500">
-                Lower numbers appear first in lists and on the size form. Use 0, 10, 20… to leave gaps for future
-                fields.
-              </p>
-            </div>
+            </FormField>
             <div className="flex items-center gap-2">
               <Field name="isActive" type="checkbox" className="h-4 w-4 rounded border-slate-300 text-indigo-600" />
               <span className="text-sm font-medium text-slate-700">Active</span>

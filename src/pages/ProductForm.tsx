@@ -12,11 +12,14 @@ import {
   deleteProductImage,
   getProduct,
   productImageUrl,
+  updateProductImageColor,
   updateProduct,
 } from '../services/products'
 import { listFabrics } from '../services/fabrics'
 import { listProductCategories } from '../services/productCategories'
 import { listMeasurementAttributes, listSizes } from '../services/sizing'
+import { listProductSubcategoriesByCategory } from '../services/productCategorySubcategories'
+import { getBasicSettings } from '../services/settings'
 import type { ProductAudience, UpdateProductPayload } from '../types/product'
 
 const productSchema = Yup.object({
@@ -75,7 +78,8 @@ const productSchema = Yup.object({
       return true
     }),
   measurementAttributeIds: Yup.array().of(Yup.string()),
-  categoryId: Yup.string().trim().max(36),
+  categoryId: Yup.string().trim().required('Category is required'),
+  subcategoryId: Yup.string().trim().max(36),
   variants: Yup.array()
     .of(
       Yup.object({
@@ -87,6 +91,8 @@ const productSchema = Yup.object({
           }
           return schema.trim().required('Size label required').max(32)
         }),
+        colorName: Yup.string().trim().required('Color name is required').max(100),
+        colorHex: Yup.string().trim().max(16),
         quantity: Yup.number()
           .typeError('Enter quantity')
           .integer('Whole numbers only')
@@ -107,7 +113,13 @@ const productSchema = Yup.object({
   isAvailable: Yup.boolean().required(),
 })
 
-type VariantRow = { sizeId: string | null; size: string; quantity: number }
+type VariantRow = {
+  sizeId: string | null
+  size: string
+  colorName: string
+  colorHex: string
+  quantity: number
+}
 
 type FabricFormRow = { fabricId: string; percent: number }
 
@@ -122,18 +134,16 @@ type FormValues = {
   fabrics: FabricFormRow[]
   measurementAttributeIds: string[]
   categoryId: string
+  subcategoryId: string
   variants: VariantRow[]
   isAvailable: boolean
 }
 
 const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/
 
-const isHexColor = (value: string): boolean => HEX_COLOR_RE.test(value.trim())
-
-/** Browsers require #rrggbb for `type="color"`; use a neutral swatch when the saved value is a text label */
 const colorPickerUiValue = (stored: string): string => {
   const t = stored.trim()
-  return HEX_COLOR_RE.test(t) ? t.toLowerCase() : '#94a3b8'
+  return HEX_COLOR_RE.test(t) ? t.toLowerCase() : '#000000'
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -144,10 +154,11 @@ const formatFileSize = (bytes: number): string => {
 
 type LocalPickedFileRowProps = {
   file: File
+  color: string
   onRemove: () => void
 }
 
-const LocalPickedFileRow = ({ file, onRemove }: LocalPickedFileRowProps): ReactElement => {
+const LocalPickedFileRow = ({ file, color, onRemove }: LocalPickedFileRowProps): ReactElement => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   useEffect(() => {
@@ -170,6 +181,7 @@ const LocalPickedFileRow = ({ file, onRemove }: LocalPickedFileRowProps): ReactE
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-slate-900">{file.name}</p>
         <p className="text-xs text-slate-500">{formatFileSize(file.size)}</p>
+        <p className="mt-1 text-xs font-semibold text-indigo-700">{color || 'Unmapped color'}</p>
       </div>
       <button
         type="button"
@@ -185,13 +197,87 @@ const LocalPickedFileRow = ({ file, onRemove }: LocalPickedFileRowProps): ReactE
 const sumVariantQty = (rows: { quantity: number }[]): number =>
   rows.reduce((a, v) => a + (Number.isFinite(v.quantity) ? v.quantity : 0), 0)
 
+type SubcategorySelectProps = {
+  categoryId: string
+  value: string
+  onChange: (next: string) => void
+  disabled?: boolean
+}
+
+const SubcategorySelect = ({
+  categoryId,
+  value,
+  onChange,
+  disabled,
+}: SubcategorySelectProps): ReactElement => {
+  const { data: rows = [], isLoading, refetch, isFetching } = useQuery({
+    queryKey: ['admin-subcategories', categoryId],
+    queryFn: () => listProductSubcategoriesByCategory(categoryId),
+    enabled: Boolean(categoryId.trim()),
+  })
+  const active = rows.filter((r) => r.isActive)
+  const selectedInactive = rows.find((r) => r.id === value && !r.isActive)
+  const hasCategory = Boolean(categoryId.trim())
+
+  return (
+    <div className="space-y-1">
+      <div className="flex gap-2">
+        <select
+          id="subcategoryId"
+          name="subcategoryId"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled || isLoading || !hasCategory}
+          className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:opacity-60"
+        >
+          <option value="">{hasCategory ? 'None (optional)' : 'Select a category first'}</option>
+          {active.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+          {selectedInactive ? (
+            <option key={selectedInactive.id} value={selectedInactive.id}>
+              {selectedInactive.name} (inactive)
+            </option>
+          ) : null}
+        </select>
+        {hasCategory ? (
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            {isFetching ? '…' : 'Refresh'}
+          </button>
+        ) : null}
+      </div>
+      {hasCategory && !isLoading && active.length > 0 ? (
+        <p className="text-xs text-slate-500">{active.length} subcategory option(s) for this category.</p>
+      ) : null}
+      {hasCategory && !isLoading && active.length === 0 ? (
+        <p className="text-xs text-amber-700">
+          No subcategories yet.{' '}
+          <Link
+            to={`/dashboard/product-categories/${categoryId.trim()}/edit`}
+            className="font-semibold text-indigo-600 hover:text-indigo-500"
+          >
+            Add subcategories on the category
+          </Link>
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 const ProductForm = (): ReactElement => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { id: productId } = useParams<{ id: string }>()
   const isCreate = Boolean(useMatch('/dashboard/products/new'))
 
-  const [newFiles, setNewFiles] = useState<File[]>([])
+  const [newFiles, setNewFiles] = useState<Array<{ file: File; color: string }>>([])
   const [imageToDelete, setImageToDelete] = useState<string | null>(null)
 
   const { data: existing, isLoading } = useQuery({
@@ -220,7 +306,7 @@ const ProductForm = (): ReactElement => {
   })
 
   const sortedCategories = [...productCategories].sort(
-    (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name),
+    (a, b) => a.name.localeCompare(b.name),
   )
 
   const sortedFabrics = [...fabrics].sort(
@@ -230,6 +316,10 @@ const ProductForm = (): ReactElement => {
   const { data: measurementAttrs = [], isLoading: measurementAttrsLoading } = useQuery({
     queryKey: ['admin-measurement-attributes'],
     queryFn: listMeasurementAttributes,
+  })
+  const { data: settings } = useQuery({
+    queryKey: ['basic-settings'],
+    queryFn: getBasicSettings,
   })
 
   const sortedMeasurementAttrs = useMemo(() => {
@@ -280,6 +370,18 @@ const ProductForm = (): ReactElement => {
     onError: (err: Error) => toast.error(err.message ?? 'Remove failed'),
   })
 
+  const updateImageColorMutation = useMutation({
+    mutationFn: ({ imageId, color }: { imageId: string; color: string }) => {
+      if (!productId) throw new Error('Invalid product')
+      return updateProductImageColor(productId, imageId, color)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-product', productId] })
+      toast.success('Image color updated')
+    },
+    onError: (err: Error) => toast.error(err.message ?? 'Image color update failed'),
+  })
+
   if (!isCreate && !productId) {
     return <p className="text-sm text-red-600">Invalid product.</p>
   }
@@ -299,7 +401,8 @@ const ProductForm = (): ReactElement => {
         fabrics: [],
         measurementAttributeIds: [],
         categoryId: '',
-        variants: [{ sizeId: null, size: '', quantity: 0 }],
+        subcategoryId: '',
+        variants: [{ sizeId: null, size: '', colorName: '', colorHex: '#000000', quantity: 0 }],
         isAvailable: true,
       }
     : {
@@ -311,7 +414,7 @@ const ProductForm = (): ReactElement => {
             ? existing.discountPercent
             : 0,
         audience: existing?.audience ?? 'UNISEX',
-        color: existing?.color ?? '',
+        color: '',
         fabrics:
           existing?.productFabrics?.length && existing.productFabrics.length > 0
             ? existing.productFabrics.map((pf) => ({
@@ -322,28 +425,39 @@ const ProductForm = (): ReactElement => {
         measurementAttributeIds:
           existing?.measurementAttributes?.map((a) => a.id) ?? [],
         categoryId: existing?.categoryId ?? existing?.category?.id ?? '',
+        subcategoryId: existing?.subcategory?.id ?? '',
         variants:
           existing?.variants?.length && existing.variants.length > 0
             ? existing.variants.map((v) => ({
                 sizeId: v.sizeId ?? null,
                 size: v.size,
+                colorName: v.color || existing?.color || '',
+                colorHex: '#000000',
                 quantity: v.quantity,
               }))
-            : [{ sizeId: null, size: 'One size', quantity: existing?.quantity ?? 0 }],
+            : [{ sizeId: null, size: 'One size', colorName: existing?.color || '', colorHex: '#000000', quantity: existing?.quantity ?? 0 }],
         isAvailable: existing?.isAvailable ?? true,
       }
 
   const handleSubmit = async (values: FormValues) => {
     const variantPayload = values.variants.map((v) => {
-      const row: { size: string; quantity: number; sizeId?: string } = {
+      const row: { size: string; color: string; quantity: number; sizeId?: string } = {
         size: v.size.trim(),
+        color: v.colorName.trim(),
         quantity: Math.max(0, Math.floor(Number(v.quantity))),
       }
       const sid = v.sizeId?.trim()
       if (sid) row.sizeId = sid
       return row
     })
+    const normalizedProductColor = variantPayload[0]?.color ?? ''
     const totalQty = sumVariantQty(variantPayload)
+    const activeColors = new Set(
+      variantPayload.map((variant) => variant.color.trim().toLowerCase()).filter((color) => color.length > 0),
+    )
+    const mappedFiles = newFiles.filter((item) =>
+      activeColors.has(item.color.trim().toLowerCase()),
+    )
 
     const fabricPayload = values.fabrics
       .filter((r) => String(r.fabricId ?? '').trim())
@@ -359,7 +473,7 @@ const ProductForm = (): ReactElement => {
       fd.append('price', String(values.price))
       fd.append('quantity', String(totalQty))
       fd.append('audience', values.audience)
-      fd.append('color', values.color.trim())
+      fd.append('color', normalizedProductColor)
       if (fabricPayload.length > 0) {
         fd.append('fabrics', JSON.stringify(fabricPayload))
       }
@@ -375,7 +489,12 @@ const ProductForm = (): ReactElement => {
       if (cid) {
         fd.append('categoryId', cid)
       }
-      newFiles.forEach((file) => fd.append('images', file))
+      const sid = values.subcategoryId.trim()
+      if (sid && cid) {
+        fd.append('subcategoryId', sid)
+      }
+      mappedFiles.forEach((item) => fd.append('images', item.file))
+      fd.append('imageColors', JSON.stringify(mappedFiles.map((item) => item.color.trim())))
       await createMutation.mutateAsync(fd)
       return
     }
@@ -387,10 +506,11 @@ const ProductForm = (): ReactElement => {
       description: values.description.trim(),
       price: values.price,
       audience: values.audience,
-      color: values.color.trim() || null,
+      color: normalizedProductColor || null,
       fabrics: fabricPayload,
       measurementAttributeIds: values.measurementAttributeIds,
       categoryId: values.categoryId.trim() || null,
+      subcategoryId: values.categoryId.trim() && values.subcategoryId.trim() ? values.subcategoryId.trim() : null,
       isAvailable: values.isAvailable,
       discountPercent:
         values.discountPercent >= 1
@@ -401,9 +521,10 @@ const ProductForm = (): ReactElement => {
 
     await updateMutation.mutateAsync({ id: productId, payload })
 
-    if (newFiles.length > 0) {
+    if (mappedFiles.length > 0) {
       const fd = new FormData()
-      newFiles.forEach((file) => fd.append('images', file))
+      mappedFiles.forEach((item) => fd.append('images', item.file))
+      fd.append('imageColors', JSON.stringify(mappedFiles.map((item) => item.color.trim())))
       await appendImagesMutation.mutateAsync({ id: productId, formData: fd })
     }
 
@@ -453,6 +574,13 @@ const ProductForm = (): ReactElement => {
             .filter((r) => String(r.fabricId ?? '').trim())
             .reduce((a, r) => a + (Number.isFinite(Number(r.percent)) ? Number(r.percent) : 0), 0)
           const requireCatalog = values.measurementAttributeIds.length > 0
+          const variantColors = Array.from(
+            new Set(
+              values.variants
+                .map((variant) => variant.colorName.trim())
+                .filter((color) => color.length > 0),
+            ),
+          )
 
           return (
             <Form className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -494,18 +622,21 @@ const ProductForm = (): ReactElement => {
 
               <div>
                 <label htmlFor="categoryId" className="mb-1 block text-sm font-medium text-slate-700">
-                  Category
+                  Category <span className="text-red-600">*</span>
                 </label>
                 <select
                   id="categoryId"
                   name="categoryId"
                   value={values.categoryId}
-                  onChange={handleChange}
+                  onChange={(e) => {
+                    setFieldValue('categoryId', e.target.value)
+                    setFieldValue('subcategoryId', '')
+                  }}
                   onBlur={handleBlur}
                   disabled={categoriesLoading}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:opacity-60"
                 >
-                  <option value="">None</option>
+                  <option value="">Select category</option>
                   {sortedCategories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -521,10 +652,31 @@ const ProductForm = (): ReactElement => {
                   >
                     New category
                   </Link>
+                  {values.categoryId.trim() ? (
+                    <Link
+                      to={`/dashboard/product-categories/${values.categoryId.trim()}/subcategories`}
+                      className="font-semibold text-indigo-600 hover:text-indigo-500"
+                    >
+                      Manage subcategories
+                    </Link>
+                  ) : null}
                 </p>
                 <p className="mt-1 text-xs text-red-600">
                   <ErrorMessage name="categoryId" />
                 </p>
+              </div>
+
+              <div>
+                <label htmlFor="subcategoryId" className="mb-1 block text-sm font-medium text-slate-700">
+                  Subcategory (optional)
+                </label>
+                <SubcategorySelect
+                  categoryId={values.categoryId}
+                  value={values.subcategoryId}
+                  onChange={(next) => setFieldValue('subcategoryId', next)}
+                  disabled={categoriesLoading}
+                />
+                <p className="mt-1 text-xs text-slate-500">Pick a type under this category.</p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -621,56 +773,8 @@ const ProductForm = (): ReactElement => {
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div>
                 <div>
-                  <span className="mb-1 block text-sm font-medium text-slate-700">Color</span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="color"
-                      aria-label="Pick color (saves as hex)"
-                      title="Pick a color"
-                      className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-slate-300 bg-white p-1 shadow-sm"
-                      value={colorPickerUiValue(values.color)}
-                      onChange={(e) => setFieldValue('color', e.target.value)}
-                    />
-                    {isHexColor(values.color) ? (
-                      <span
-                        className="h-11 w-11 shrink-0 rounded-lg border border-slate-200 shadow-inner"
-                        style={{ backgroundColor: values.color.trim() }}
-                        title="Saved color preview"
-                      />
-                    ) : null}
-                    <input
-                      id="color"
-                      name="color"
-                      type="text"
-                      placeholder="#1e3a8a or Navy"
-                      value={values.color}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      className="min-w-[8rem] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                    />
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-3">
-                    <p className="text-xs text-slate-500">
-                      The swatch saves <span className="font-mono">#RRGGBB</span>. You can type a name instead; the
-                      picker shows neutral gray until the field is hex.
-                    </p>
-                    {values.color.trim() ? (
-                      <button
-                        type="button"
-                        onClick={() => setFieldValue('color', '')}
-                        className="text-xs font-semibold text-slate-600 underline decoration-slate-300 hover:text-slate-900"
-                      >
-                        Clear color
-                      </button>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 text-xs text-red-600">
-                    <ErrorMessage name="color" />
-                  </p>
-                </div>
-                <div className="sm:col-span-2">
                   <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
                     <label className="block text-sm font-medium text-slate-700">Fabric blend</label>
                     <span
@@ -826,7 +930,7 @@ const ProductForm = (): ReactElement => {
               <div>
                 <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
                   <div>
-                    <p className="text-sm font-medium text-slate-700">Sizes &amp; stock</p>
+                    <p className="text-sm font-medium text-slate-700">Variants (size, color &amp; stock)</p>
                     <p className="text-xs text-slate-500">
                       {requireCatalog
                         ? 'Catalog size is required for every row so measurements match your size chart.'
@@ -920,6 +1024,34 @@ const ProductForm = (): ReactElement => {
                               <ErrorMessage name={`variants.${idx}.size`} />
                             </p>
                           </div>
+                          <div className="min-w-[160px] flex-1">
+                            <label
+                              className="mb-0.5 block text-xs font-medium text-slate-600"
+                              htmlFor={`variants.${idx}.colorName`}
+                            >
+                              Color name
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                aria-label={`Pick color for variant row ${idx + 1}`}
+                                title="Pick variant color"
+                                className="h-9 w-11 shrink-0 cursor-pointer rounded-md border border-slate-300 bg-white p-1"
+                                value={colorPickerUiValue(values.variants[idx]?.colorHex ?? '')}
+                                onChange={(e) => setFieldValue(`variants.${idx}.colorHex`, e.target.value)}
+                              />
+                              <Field
+                                id={`variants.${idx}.colorName`}
+                                name={`variants.${idx}.colorName`}
+                                className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-indigo-500"
+                                placeholder="Black, Navy, White..."
+                              />
+                            </div>
+                            <p className="mt-0.5 text-xs text-slate-500">Use color name. Picker is optional for swatch.</p>
+                            <p className="mt-0.5 text-xs text-red-600">
+                              <ErrorMessage name={`variants.${idx}.colorName`} />
+                            </p>
+                          </div>
                           <div className="w-28">
                             <label
                               className="mb-0.5 block text-xs font-medium text-slate-600"
@@ -939,6 +1071,58 @@ const ProductForm = (): ReactElement => {
                               <ErrorMessage name={`variants.${idx}.quantity`} />
                             </p>
                           </div>
+                          <div className="w-full rounded-lg border border-dashed border-slate-300 bg-white/80 p-2">
+                            <p className="mb-1 text-xs font-medium text-slate-700">
+                              Images for {values.variants[idx]?.colorName?.trim() || 'this color'}
+                            </p>
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/gif,image/webp"
+                              multiple
+                              onChange={(event) => {
+                                const variantColor = values.variants[idx]?.colorName?.trim()
+                                if (!variantColor) {
+                                  toast.warn('Enter variant color name first, then add images.')
+                                  event.target.value = ''
+                                  return
+                                }
+                                const picked = Array.from(event.target.files ?? [])
+                                if (!picked.length) return
+                                const maxBytes = settings?.uploads.limits.productImageMaxBytes ?? 1 * 1024 * 1024
+                                const allowed = new Set(settings?.uploads.image.mimeTypes ?? [
+                                  'image/jpeg',
+                                  'image/jpg',
+                                  'image/png',
+                                  'image/gif',
+                                  'image/webp',
+                                ])
+                                const badType = picked.find((file) => !allowed.has(file.type))
+                                if (badType) {
+                                  toast.error('Only JPEG, PNG, GIF, or WebP images are allowed')
+                                  event.target.value = ''
+                                  return
+                                }
+                                const tooLarge = picked.find((file) => file.size > maxBytes)
+                                if (tooLarge) {
+                                  toast.error(`Each product image must be <= ${(maxBytes / (1024 * 1024)).toFixed(0)} MB`)
+                                  event.target.value = ''
+                                  return
+                                }
+                                setNewFiles((prev) => {
+                                  const merged = [...prev, ...picked.map((file) => ({ file, color: variantColor }))]
+                                  const seen = new Set<string>()
+                                  return merged.filter((item) => {
+                                    const key = `${item.file.name}-${item.file.size}-${item.file.lastModified}-${item.color.toLowerCase()}`
+                                    if (seen.has(key)) return false
+                                    seen.add(key)
+                                    return true
+                                  })
+                                })
+                                event.target.value = ''
+                              }}
+                              className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
+                            />
+                          </div>
                           <button
                             type="button"
                             onClick={() => {
@@ -956,7 +1140,7 @@ const ProductForm = (): ReactElement => {
                       ))}
                       <button
                         type="button"
-                        onClick={() => push({ sizeId: null, size: '', quantity: 0 })}
+                        onClick={() => push({ sizeId: null, size: '', colorName: '', colorHex: '#000000', quantity: 0 })}
                         className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                       >
                         + Add size row
@@ -984,50 +1168,85 @@ const ProductForm = (): ReactElement => {
               </div>
 
               <div>
-                <label htmlFor="images" className="mb-1 block text-sm font-medium text-slate-700">
-                  {isCreate ? 'Images' : 'Add images'}
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Images by variant color
                 </label>
                 <p className="mb-2 text-xs text-slate-500">
-                  Choose files from your computer. Remove any before saving — only remaining images will be uploaded.
+                  Add images under each variant color. User panel will switch images when that color is selected.
                 </p>
-                <input
-                  id="images"
-                  name="images"
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
-                  multiple
-                  onChange={(e) => {
-                    const picked = Array.from(e.target.files ?? [])
-                    if (!picked.length) return
-                    setNewFiles((prev) => {
-                      const merged = [...prev, ...picked]
-                      const seen = new Set<string>()
-                      return merged.filter((f) => {
-                        const key = `${f.name}-${f.size}-${f.lastModified}`
-                        if (seen.has(key)) return false
-                        seen.add(key)
-                        return true
-                      })
-                    })
-                    e.target.value = ''
-                  }}
-                  className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
-                />
-                {newFiles.length > 0 ? (
-                  <ul className="mt-4 space-y-2">
-                    {newFiles.map((file, index) => (
-                      <li key={`${file.name}-${file.size}-${file.lastModified}-${index}`}>
-                        <LocalPickedFileRow
-                          file={file}
-                          onRemove={() => {
-                            setNewFiles((prev) => prev.filter((_, i) => i !== index))
-                          }}
-                        />
-                      </li>
-                    ))}
-                  </ul>
+                {variantColors.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                    Add at least one variant color to enable color-wise image upload.
+                  </p>
                 ) : (
-                  <p className="mt-2 text-xs text-slate-400">No images selected yet.</p>
+                  <div className="space-y-3">
+                    {variantColors.map((color) => {
+                      const colorFiles = newFiles.filter((item) => item.color.trim().toLowerCase() === color.toLowerCase())
+                      return (
+                        <div key={color} className="rounded-xl border border-slate-200 p-3">
+                          <p className="mb-2 text-sm font-semibold text-slate-800">{color}</p>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/gif,image/webp"
+                            multiple
+                            onChange={(event) => {
+                              const picked = Array.from(event.target.files ?? [])
+                              if (!picked.length) return
+                              const maxBytes = settings?.uploads.limits.productImageMaxBytes ?? 1 * 1024 * 1024
+                              const allowed = new Set(settings?.uploads.image.mimeTypes ?? [
+                                'image/jpeg',
+                                'image/jpg',
+                                'image/png',
+                                'image/gif',
+                                'image/webp',
+                              ])
+                              const badType = picked.find((file) => !allowed.has(file.type))
+                              if (badType) {
+                                toast.error('Only JPEG, PNG, GIF, or WebP images are allowed')
+                                event.target.value = ''
+                                return
+                              }
+                              const tooLarge = picked.find((file) => file.size > maxBytes)
+                              if (tooLarge) {
+                                toast.error(`Each product image must be <= ${(maxBytes / (1024 * 1024)).toFixed(0)} MB`)
+                                event.target.value = ''
+                                return
+                              }
+                              setNewFiles((prev) => {
+                                const merged = [...prev, ...picked.map((file) => ({ file, color }))]
+                                const seen = new Set<string>()
+                                return merged.filter((item) => {
+                                  const key = `${item.file.name}-${item.file.size}-${item.file.lastModified}-${item.color.toLowerCase()}`
+                                  if (seen.has(key)) return false
+                                  seen.add(key)
+                                  return true
+                                })
+                              })
+                              event.target.value = ''
+                            }}
+                            className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
+                          />
+                          {colorFiles.length > 0 ? (
+                            <ul className="mt-3 space-y-2">
+                              {colorFiles.map((item) => (
+                                <li key={`${item.file.name}-${item.file.size}-${item.file.lastModified}-${item.color}`}>
+                                  <LocalPickedFileRow
+                                    file={item.file}
+                                    color={item.color}
+                                    onRemove={() => {
+                                      setNewFiles((prev) => prev.filter((entry) => entry !== item))
+                                    }}
+                                  />
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-xs text-slate-400">No images selected for {color}.</p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 )}
               </div>
 
@@ -1036,11 +1255,22 @@ const ProductForm = (): ReactElement => {
                   <p className="mb-2 text-sm font-medium text-slate-700">Current images</p>
                   <div className="flex flex-wrap gap-3">
                     {existing.images.map((img) => (
-                      <div key={img.id} className="relative">
+                      <div key={img.id} className="relative space-y-1">
                         <img
                           src={productImageUrl(img.path)}
                           alt=""
                           className="h-24 w-24 rounded-lg border border-slate-200 object-cover"
+                        />
+                        <input
+                          type="text"
+                          defaultValue={img.color ?? ''}
+                          placeholder="Color name"
+                          className="w-24 rounded border border-slate-300 px-1.5 py-1 text-[10px] outline-none focus:border-indigo-500"
+                          onBlur={(event) => {
+                            const nextColor = event.target.value.trim()
+                            if ((img.color ?? '') === nextColor || updateImageColorMutation.isPending) return
+                            updateImageColorMutation.mutate({ imageId: img.id, color: nextColor })
+                          }}
                         />
                         <button
                           type="button"

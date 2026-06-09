@@ -8,10 +8,22 @@ export interface Coupon {
   minSubtotal: string | null
   maxDiscount: string | null
   usageLimit: number | null
+  perUserLimit?: number | null
   usedCount: number
   startsAt: string | null
   endsAt: string | null
   isActive: boolean
+  categoryLinks: { categoryId: string; category: { id: string; name: string; slug: string } }[]
+  userLinks?: {
+    id: string
+    userId: string
+    user: { id: string; name: string; email: string | null }
+  }[]
+  userGroupLinks?: {
+    id: string
+    userGroupId: string
+    userGroup: { id: string; name: string }
+  }[]
   createdAt: string
   updatedAt: string
 }
@@ -26,6 +38,7 @@ export type CreateCouponPayload = {
   startsAt?: string
   endsAt?: string
   isActive?: boolean
+  categoryIds?: string[]
 }
 
 export type UpdateCouponPayload = {
@@ -38,4 +51,5 @@ export type UpdateCouponPayload = {
   startsAt?: string | null
   endsAt?: string | null
   isActive?: boolean
+  categoryIds?: string[]
 }

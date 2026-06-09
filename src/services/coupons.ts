@@ -31,3 +31,36 @@ export const updateCoupon = async (
 export const deleteCoupon = async (id: string): Promise<void> => {
   await api.delete(`/admin/coupons/${id}`)
 }
+
+export const assignCouponToUser = async (couponId: string, userId: string): Promise<Coupon> => {
+  const { data } = await api.post<Coupon>(`/admin/coupons/${couponId}/users`, { userId })
+  return data
+}
+
+export const unassignCouponFromUser = async (
+  couponId: string,
+  userId: string,
+): Promise<Coupon> => {
+  const { data } = await api.delete<Coupon>(`/admin/coupons/${couponId}/users/${userId}`)
+  return data
+}
+
+export const assignCouponToGroup = async (
+  couponId: string,
+  userGroupId: string,
+): Promise<Coupon> => {
+  const { data } = await api.post<Coupon>(`/admin/coupons/${couponId}/user-groups`, {
+    userGroupId,
+  })
+  return data
+}
+
+export const unassignCouponFromGroup = async (
+  couponId: string,
+  userGroupId: string,
+): Promise<Coupon> => {
+  const { data } = await api.delete<Coupon>(
+    `/admin/coupons/${couponId}/user-groups/${userGroupId}`,
+  )
+  return data
+}

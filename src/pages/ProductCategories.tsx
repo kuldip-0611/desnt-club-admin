@@ -4,9 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
+import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
 import {
   deleteProductCategory,
   listProductCategories,
+  productCategoryImageUrl,
   updateProductCategory,
 } from '../services/productCategories'
 import type { ProductCategory } from '../types/productCategory'
@@ -41,6 +43,66 @@ const ProductCategories = (): ReactElement => {
     setCategoryToDelete(c)
   }
 
+  const columns: DataTableColumn<ProductCategory>[] = [
+    { key: 'name', header: 'Name', render: (c) => <span className="font-medium text-slate-900">{c.name}</span> },
+    { key: 'slug', header: 'Slug', render: (c) => <span className="font-mono text-xs text-slate-600">{c.slug}</span> },
+    {
+      key: 'subcategories',
+      header: 'Subcategories',
+      render: (c) => (
+        <span className="text-sm text-slate-600">{c._count?.subcategories ?? 0}</span>
+      ),
+    },
+    {
+      key: 'image',
+      header: 'Image',
+      render: (c) =>
+        c.image ? (
+          <img src={productCategoryImageUrl(c.image)} alt={c.name} className="h-10 w-10 rounded object-cover" />
+        ) : (
+          <span className="text-xs text-slate-400">No image</span>
+        ),
+    },
+    {
+      key: 'active',
+      header: 'Active',
+      render: (c) => (
+        <button
+          type="button"
+          onClick={() => toggleMutation.mutate({ id: c.id, isActive: !c.isActive })}
+          disabled={toggleMutation.isPending}
+          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+            c.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+          }`}
+        >
+          {c.isActive ? 'On' : 'Off'}
+        </button>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'text-right',
+      cellClassName: 'text-right',
+      render: (c) => (
+        <>
+          <Link
+            to={`/dashboard/product-categories/${c.id}/subcategories`}
+            className="mr-2 text-sm font-semibold text-slate-600 hover:text-slate-800"
+          >
+            Subcategories
+          </Link>
+          <Link to={`/dashboard/product-categories/${c.id}/edit`} className="mr-2 text-sm font-semibold text-indigo-600 hover:text-indigo-500">
+            Edit
+          </Link>
+          <button type="button" onClick={() => handleDelete(c)} className="text-sm font-semibold text-red-600 hover:text-red-500">
+            Delete
+          </button>
+        </>
+      ),
+    },
+  ]
+
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center rounded-2xl border border-slate-200 bg-white">
@@ -64,7 +126,6 @@ const ProductCategories = (): ReactElement => {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Product categories</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-600">
             Group catalog items (T-shirt, tracks, hoodies, …). Assign a category when adding or editing a product.
-            Lower <strong>sort order</strong> values list first.
           </p>
         </div>
         <Link
@@ -81,55 +142,7 @@ const ProductCategories = (): ReactElement => {
           product.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Slug</th>
-                <th className="px-4 py-3">Sort</th>
-                <th className="px-4 py-3">Active</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50/80">
-                  <td className="px-4 py-3 font-medium text-slate-900">{c.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600">{c.slug}</td>
-                  <td className="px-4 py-3 tabular-nums text-slate-700">{c.sortOrder}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleMutation.mutate({ id: c.id, isActive: !c.isActive })}
-                      disabled={toggleMutation.isPending}
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        c.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {c.isActive ? 'On' : 'Off'}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      to={`/dashboard/product-categories/${c.id}/edit`}
-                      className="mr-2 text-sm font-semibold text-indigo-600 hover:text-indigo-500"
-                    >
-                      Edit
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(c)}
-                      className="text-sm font-semibold text-red-600 hover:text-red-500"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} />
       )}
       <ConfirmDeleteModal
         isOpen={categoryToDelete != null}

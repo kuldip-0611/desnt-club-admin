@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
+import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
 import {
   deleteMeasurementAttribute,
   listMeasurementAttributes,
@@ -40,6 +41,63 @@ const MeasurementAttributes = (): ReactElement => {
   const handleDelete = (a: MeasurementAttribute) => {
     setAttributeToDelete(a)
   }
+
+  const columns: DataTableColumn<MeasurementAttribute>[] = [
+    {
+      key: 'label',
+      header: 'Label',
+      render: (a) => <span className="font-medium text-slate-900">{a.label}</span>,
+    },
+    {
+      key: 'slug',
+      header: 'Slug',
+      render: (a) => <span className="font-mono text-xs text-slate-600">{a.slug}</span>,
+    },
+    {
+      key: 'unit',
+      header: 'Unit',
+      render: (a) => <span className="text-slate-600">{a.unit ?? '—'}</span>,
+    },
+    {
+      key: 'active',
+      header: 'Active',
+      render: (a) => (
+        <button
+          type="button"
+          onClick={() => toggleMutation.mutate({ id: a.id, isActive: !a.isActive })}
+          disabled={toggleMutation.isPending}
+          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+            a.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+          }`}
+        >
+          {a.isActive ? 'On' : 'Off'}
+        </button>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'text-right',
+      cellClassName: 'text-right',
+      render: (a) => (
+        <>
+          <Link
+            to={`/dashboard/measurement-attributes/${a.id}/edit`}
+            className="mr-2 text-sm font-semibold text-indigo-600 hover:text-indigo-500"
+          >
+            Edit
+          </Link>
+          <button
+            type="button"
+            onClick={() => handleDelete(a)}
+            className="text-sm font-semibold text-red-600 hover:text-red-500"
+          >
+            Delete
+          </button>
+        </>
+      ),
+    },
+  ]
 
   if (isLoading) {
     return (
@@ -85,59 +143,7 @@ const MeasurementAttributes = (): ReactElement => {
           then assign values per size on the Sizes page.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3">Label</th>
-                <th className="px-4 py-3">Slug</th>
-                <th className="px-4 py-3">Unit</th>
-                <th className="px-4 py-3">Sort</th>
-                <th className="px-4 py-3">Active</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.map((a) => (
-                <tr key={a.id} className="hover:bg-slate-50/80">
-                  <td className="px-4 py-3 font-medium text-slate-900">{a.label}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600">{a.slug}</td>
-                  <td className="px-4 py-3 text-slate-600">{a.unit ?? '—'}</td>
-                  <td className="px-4 py-3 tabular-nums text-slate-700">{a.sortOrder}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleMutation.mutate({ id: a.id, isActive: !a.isActive })}
-                      disabled={toggleMutation.isPending}
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        a.isActive
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {a.isActive ? 'On' : 'Off'}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      to={`/dashboard/measurement-attributes/${a.id}/edit`}
-                      className="mr-2 text-sm font-semibold text-indigo-600 hover:text-indigo-500"
-                    >
-                      Edit
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(a)}
-                      className="text-sm font-semibold text-red-600 hover:text-red-500"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} />
       )}
       <ConfirmDeleteModal
         isOpen={attributeToDelete != null}

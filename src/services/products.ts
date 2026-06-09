@@ -2,8 +2,31 @@ import baseUrl from '../config'
 import api from './api'
 import type { Product, UpdateProductPayload } from '../types/product'
 
-export const listProducts = async (): Promise<Product[]> => {
-  const { data } = await api.get<Product[]>('/admin/products')
+export type ListProductsParams = {
+  page?: number
+  limit?: number
+  search?: string
+}
+
+export type PaginatedProductsResponse = {
+  items: Product[]
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPrevPage: boolean
+  summary: {
+    total: number
+    available: number
+    lowStock: number
+  }
+}
+
+export const listProducts = async (
+  params: ListProductsParams = {},
+): Promise<PaginatedProductsResponse> => {
+  const { data } = await api.get<PaginatedProductsResponse>('/admin/products', { params })
   return data
 }
 
@@ -33,6 +56,15 @@ export const appendProductImages = async (id: string, formData: FormData): Promi
 
 export const deleteProductImage = async (productId: string, imageId: string): Promise<Product> => {
   const { data } = await api.delete<Product>(`/admin/products/${productId}/images/${imageId}`)
+  return data
+}
+
+export const updateProductImageColor = async (
+  productId: string,
+  imageId: string,
+  color: string,
+): Promise<Product> => {
+  const { data } = await api.patch<Product>(`/admin/products/${productId}/images/${imageId}/color`, { color })
   return data
 }
 

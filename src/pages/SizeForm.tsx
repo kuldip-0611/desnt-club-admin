@@ -5,13 +5,13 @@ import { Field, Form, Formik, ErrorMessage } from 'formik'
 import { Link, useMatch, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import * as Yup from 'yup'
+import FormField from '../components/ui/FormField'
 import { createSize, getSize, listMeasurementAttributes, updateSize } from '../services/sizing'
 import type { MeasurementAttribute } from '../types/sizing'
 
 const baseSchema = Yup.object({
   code: Yup.string().trim().required('Code is required').max(32),
   name: Yup.string().trim().max(120),
-  sortOrder: Yup.number().integer().min(0),
   valueUnit: Yup.string().oneOf(['', 'cm', 'in']),
   isActive: Yup.boolean().required(),
 })
@@ -19,7 +19,6 @@ const baseSchema = Yup.object({
 type FormValues = {
   code: string
   name: string
-  sortOrder: number
   valueUnit: '' | 'cm' | 'in'
   isActive: boolean
 }
@@ -92,11 +91,10 @@ const SizeForm = (): ReactElement => {
   }
 
   const initialValues: FormValues = isCreate
-    ? { code: '', name: '', sortOrder: 0, valueUnit: '', isActive: true }
+    ? { code: '', name: '', valueUnit: '', isActive: true }
     : {
         code: existing?.code ?? '',
         name: existing?.name ?? '',
-        sortOrder: existing?.sortOrder ?? 0,
         valueUnit:
           existing?.valueUnit === 'cm' || existing?.valueUnit === 'in' ? existing.valueUnit : '',
         isActive: existing?.isActive ?? true,
@@ -132,7 +130,6 @@ const SizeForm = (): ReactElement => {
           const payload = {
             code: values.code.trim(),
             name: values.name.trim() || undefined,
-            sortOrder: values.sortOrder,
             valueUnit: values.valueUnit === '' ? null : values.valueUnit,
             isActive: values.isActive,
             measurements,
@@ -146,27 +143,16 @@ const SizeForm = (): ReactElement => {
       >
         {({ isSubmitting, isValid, values }) => (
             <Form className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Code</label>
+              <FormField label="Code" error={<ErrorMessage name="code" />}>
                 <Field name="code" className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm" />
-                <p className="mt-1 text-xs text-red-600">
-                  <ErrorMessage name="code" />
-                </p>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Display name (optional)</label>
+              </FormField>
+              <FormField label="Display name (optional)">
                 <Field name="name" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Sort order</label>
-                <Field name="sortOrder" type="number" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-                <p className="mt-1 text-xs text-slate-500">
-                  Controls where this size appears in dropdowns and tables (e.g. XS before S). Use smaller numbers
-                  first; gaps like 10, 20 make inserts easier later.
-                </p>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Chart unit (optional)</label>
+              </FormField>
+              <FormField
+                label="Chart unit (optional)"
+                hint="Hint for anyone entering numbers; each measurement row still shows the attribute unit when set."
+              >
                 <Field
                   as="select"
                   name="valueUnit"
@@ -176,10 +162,7 @@ const SizeForm = (): ReactElement => {
                   <option value="cm">Centimetres (cm) — typical for this chart</option>
                   <option value="in">Inches (in) — typical for this chart</option>
                 </Field>
-                <p className="mt-1 text-xs text-slate-500">
-                  Hint for anyone entering numbers; each measurement row still shows the attribute unit when set.
-                </p>
-              </div>
+              </FormField>
               <div className="flex items-center gap-2">
                 <Field name="isActive" type="checkbox" className="h-4 w-4 rounded border-slate-300 text-indigo-600" />
                 <span className="text-sm font-medium text-slate-700">Active</span>

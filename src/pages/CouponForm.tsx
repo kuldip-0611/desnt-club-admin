@@ -4,7 +4,10 @@ import { Field, Form, Formik, ErrorMessage } from 'formik'
 import { Link, useMatch, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import * as Yup from 'yup'
+import CouponAudiencePanel from '../components/CouponAudiencePanel'
+import FormField from '../components/ui/FormField'
 import { createCoupon, getCoupon, updateCoupon } from '../services/coupons'
+import { listProductCategories } from '../services/productCategories'
 import type {
   CouponDiscountType,
   CreateCouponPayload,
@@ -73,6 +76,7 @@ type FormValues = {
   startsAt: string
   endsAt: string
   isActive: boolean
+  categoryIds: string[]
 }
 
 const CouponForm = (): ReactElement => {
@@ -85,6 +89,11 @@ const CouponForm = (): ReactElement => {
     queryKey: ['admin-coupon', couponId],
     queryFn: () => getCoupon(couponId!),
     enabled: !isCreate && Boolean(couponId),
+  })
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ['admin-product-categories'],
+    queryFn: listProductCategories,
   })
 
   const createMutation = useMutation({
@@ -128,6 +137,7 @@ const CouponForm = (): ReactElement => {
         startsAt: toDatetimeLocal(existing.startsAt),
         endsAt: toDatetimeLocal(existing.endsAt),
         isActive: existing.isActive,
+        categoryIds: existing.categoryLinks?.map((x) => x.categoryId) ?? [],
       }
     : {
         code: '',
@@ -139,6 +149,7 @@ const CouponForm = (): ReactElement => {
         startsAt: '',
         endsAt: '',
         isActive: true,
+        categoryIds: [],
       }
 
   const toCreatePayload = (values: FormValues): CreateCouponPayload => {
@@ -155,6 +166,7 @@ const CouponForm = (): ReactElement => {
       startsAt: values.startsAt.trim() === '' ? undefined : fromDatetimeLocal(values.startsAt),
       endsAt: values.endsAt.trim() === '' ? undefined : fromDatetimeLocal(values.endsAt),
       isActive: values.isActive,
+      categoryIds: values.categoryIds,
     }
   }
 
@@ -172,6 +184,7 @@ const CouponForm = (): ReactElement => {
       startsAt: values.startsAt.trim() === '' ? null : fromDatetimeLocal(values.startsAt),
       endsAt: values.endsAt.trim() === '' ? null : fromDatetimeLocal(values.endsAt),
       isActive: values.isActive,
+      categoryIds: values.categoryIds,
     }
   }
 
@@ -201,25 +214,22 @@ const CouponForm = (): ReactElement => {
           }
         }}
       >
-        {({ values, isSubmitting }) => (
+        {({ values, isSubmitting, setFieldValue }) => (
           <Form className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-            <div>
-              <label htmlFor="code" className="block text-sm font-medium text-slate-700">
-                Code
-              </label>
+            <FormField
+              label="Code"
+              htmlFor="code"
+              error={<ErrorMessage name="code" />}
+            >
               <Field
                 id="code"
                 name="code"
                 autoComplete="off"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm uppercase outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
-              <ErrorMessage name="code" component="p" className="mt-1 text-sm text-red-600" />
-            </div>
+            </FormField>
 
-            <div>
-              <label htmlFor="discountType" className="block text-sm font-medium text-slate-700">
-                Discount type
-              </label>
+            <FormField label="Discount type" htmlFor="discountType">
               <Field
                 id="discountType"
                 name="discountType"
@@ -229,12 +239,13 @@ const CouponForm = (): ReactElement => {
                 <option value="PERCENT">Percent off</option>
                 <option value="FIXED">Fixed amount off</option>
               </Field>
-            </div>
+            </FormField>
 
-            <div>
-              <label htmlFor="value" className="block text-sm font-medium text-slate-700">
-                {values.discountType === 'PERCENT' ? 'Percent (0–100)' : 'Amount ($)'}
-              </label>
+            <FormField
+              label={values.discountType === 'PERCENT' ? 'Percent (0–100)' : 'Amount ($)'}
+              htmlFor="value"
+              error={<ErrorMessage name="value" />}
+            >
               <Field
                 id="value"
                 name="value"
@@ -243,8 +254,7 @@ const CouponForm = (): ReactElement => {
                 min={0}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
-              <ErrorMessage name="value" component="p" className="mt-1 text-sm text-red-600" />
-            </div>
+            </FormField>
 
             <div>
               <label htmlFor="minSubtotal" className="block text-sm font-medium text-slate-700">
@@ -329,6 +339,33 @@ const CouponForm = (): ReactElement => {
               </label>
             </div>
 
+            <div>
+              <label htmlFor="categoryIds" className="block text-sm font-medium text-slate-700">
+                Apply to categories (optional)
+              </label>
+              <select
+                id="categoryIds"
+                name="categoryIds"
+                multiple
+                value={values.categoryIds}
+                onChange={(e) => {
+                  const ids = Array.from(e.target.selectedOptions).map((o) => o.value)
+                  setFieldValue('categoryIds', ids)
+                }}
+                className="mt-1 min-h-36 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {!c.isActive ? ' (inactive)' : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-500">
+                Leave empty to allow all categories.
+              </p>
+            </div>
+
             <div className="flex flex-wrap gap-3 pt-2">
               <button
                 type="submit"
@@ -349,6 +386,8 @@ const CouponForm = (): ReactElement => {
           </Form>
         )}
       </Formik>
+
+      {!isCreate && couponId ? <CouponAudiencePanel couponId={couponId} /> : null}
     </div>
   )
 }

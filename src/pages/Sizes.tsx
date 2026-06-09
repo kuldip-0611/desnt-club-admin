@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
+import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
 import { deleteSize, listSizes, updateSize } from '../services/sizing'
 import type { Size } from '../types/sizing'
 
@@ -43,6 +44,73 @@ const Sizes = (): ReactElement => {
   const handleDelete = (s: Size) => {
     setSizeToDelete(s)
   }
+
+  const columns: DataTableColumn<Size>[] = [
+    {
+      key: 'code',
+      header: 'Code',
+      render: (s) => <span className="font-mono font-semibold text-slate-900">{s.code}</span>,
+    },
+    {
+      key: 'name',
+      header: 'Name',
+      render: (s) => <span className="text-slate-700">{s.name ?? '—'}</span>,
+    },
+    {
+      key: 'unit',
+      header: 'Unit',
+      render: (s) => (
+        <span className="text-xs font-medium uppercase text-slate-600">
+          {s.valueUnit === 'cm' || s.valueUnit === 'in' ? s.valueUnit : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'measurements',
+      header: 'Measurements',
+      cellClassName: 'max-w-md text-xs leading-snug text-slate-600',
+      render: (s) => summarizeMeasurements(s),
+    },
+    {
+      key: 'active',
+      header: 'Active',
+      render: (s) => (
+        <button
+          type="button"
+          onClick={() => toggleMutation.mutate({ sid: s.id, isActive: !s.isActive })}
+          disabled={toggleMutation.isPending}
+          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+            s.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+          }`}
+        >
+          {s.isActive ? 'On' : 'Off'}
+        </button>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'text-right',
+      cellClassName: 'text-right',
+      render: (s) => (
+        <>
+          <Link
+            to={`/dashboard/sizes/${s.id}/edit`}
+            className="mr-2 text-sm font-semibold text-indigo-600 hover:text-indigo-500"
+          >
+            Edit
+          </Link>
+          <button
+            type="button"
+            onClick={() => handleDelete(s)}
+            className="text-sm font-semibold text-red-600 hover:text-red-500"
+          >
+            Delete
+          </button>
+        </>
+      ),
+    },
+  ]
 
   if (isLoading) {
     return (
@@ -84,63 +152,7 @@ const Sizes = (): ReactElement => {
           No sizes yet. Create attributes first, then add sizes with optional measurements.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3">Code</th>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3" title="Optional hint for how numbers in this row are entered">
-                  Unit
-                </th>
-                <th className="px-4 py-3">Measurements</th>
-                <th className="px-4 py-3">Active</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.map((s) => (
-                <tr key={s.id} className="hover:bg-slate-50/80">
-                  <td className="px-4 py-3 font-mono font-semibold text-slate-900">{s.code}</td>
-                  <td className="px-4 py-3 text-slate-700">{s.name ?? '—'}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs font-medium uppercase text-slate-600">
-                    {s.valueUnit === 'cm' || s.valueUnit === 'in' ? s.valueUnit : '—'}
-                  </td>
-                  <td className="max-w-md px-4 py-3 text-xs leading-snug text-slate-600">
-                    {summarizeMeasurements(s)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleMutation.mutate({ sid: s.id, isActive: !s.isActive })}
-                      disabled={toggleMutation.isPending}
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        s.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {s.isActive ? 'On' : 'Off'}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      to={`/dashboard/sizes/${s.id}/edit`}
-                      className="mr-2 text-sm font-semibold text-indigo-600 hover:text-indigo-500"
-                    >
-                      Edit
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(s)}
-                      className="text-sm font-semibold text-red-600 hover:text-red-500"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} />
       )}
       <ConfirmDeleteModal
         isOpen={sizeToDelete != null}

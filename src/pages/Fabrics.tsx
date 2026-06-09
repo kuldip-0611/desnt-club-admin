@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useState } from 'react'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
+import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
 import { deleteFabric, listFabrics, updateFabric } from '../services/fabrics'
 import type { Fabric } from '../types/fabric'
 
@@ -36,6 +37,42 @@ const Fabrics = (): ReactElement => {
   const handleDelete = (f: Fabric) => {
     setFabricToDelete(f)
   }
+
+  const columns: DataTableColumn<Fabric>[] = [
+    { key: 'name', header: 'Name', render: (f) => <span className="font-medium text-slate-900">{f.name}</span> },
+    { key: 'slug', header: 'Slug', render: (f) => <span className="font-mono text-xs text-slate-600">{f.slug}</span> },
+    {
+      key: 'active',
+      header: 'Active',
+      render: (f) => (
+        <button
+          type="button"
+          onClick={() => toggleMutation.mutate({ id: f.id, isActive: !f.isActive })}
+          className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+            f.isActive ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+          }`}
+        >
+          {f.isActive ? 'Active' : 'Inactive'}
+        </button>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'text-right',
+      cellClassName: 'text-right',
+      render: (f) => (
+        <>
+          <Link to={`/dashboard/fabrics/${f.id}/edit`} className="mr-3 text-sm font-semibold text-indigo-600 hover:text-indigo-500">
+            Edit
+          </Link>
+          <button type="button" onClick={() => handleDelete(f)} className="text-sm font-semibold text-red-600 hover:text-red-500">
+            Delete
+          </button>
+        </>
+      ),
+    },
+  ]
 
   if (isLoading) {
     return (
@@ -76,56 +113,7 @@ const Fabrics = (): ReactElement => {
           product.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Slug</th>
-                <th className="px-4 py-3">Sort</th>
-                <th className="px-4 py-3">Active</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.map((f) => (
-                <tr key={f.id} className="hover:bg-slate-50/80">
-                  <td className="px-4 py-3 font-medium text-slate-900">{f.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600">{f.slug}</td>
-                  <td className="px-4 py-3 tabular-nums text-slate-700">{f.sortOrder}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleMutation.mutate({ id: f.id, isActive: !f.isActive })}
-                      className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
-                        f.isActive
-                          ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                          : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                      }`}
-                    >
-                      {f.isActive ? 'Active' : 'Inactive'}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      to={`/dashboard/fabrics/${f.id}/edit`}
-                      className="mr-3 text-sm font-semibold text-indigo-600 hover:text-indigo-500"
-                    >
-                      Edit
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(f)}
-                      className="text-sm font-semibold text-red-600 hover:text-red-500"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} />
       )}
       <ConfirmDeleteModal
         isOpen={fabricToDelete != null}

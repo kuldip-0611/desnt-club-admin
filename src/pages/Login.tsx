@@ -3,6 +3,7 @@ import type { ReactElement } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { ShoppingBag } from 'lucide-react'
 import LoginForm from '../components/LoginForm'
 import { useAuth, TOKEN_KEY } from '../hooks/useAuth'
 import {
@@ -49,18 +50,22 @@ const Login = (): ReactElement => {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-xl">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">Admin Login</h1>
-          <p className="mt-2 text-sm text-slate-500">Sign in to access dashboard controls.</p>
+      <div className="w-full max-w-md">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 shadow-xl shadow-indigo-900/50">
+            <ShoppingBag size={26} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-white">Desent Club Admin</h1>
+          <p className="mt-1.5 text-sm text-slate-400">Sign in to access the dashboard.</p>
         </div>
-
-        <LoginForm
-          initialValues={initialValues}
-          isLoading={loginMutation.isPending}
-          errorMessage={errorMessage}
-          onSubmit={handleSubmit}
-        />
+        <div className="rounded-2xl border border-white/10 bg-[#0d1117]/80 p-8 shadow-2xl backdrop-blur-md">
+          <LoginForm
+            initialValues={initialValues}
+            isLoading={loginMutation.isPending}
+            errorMessage={errorMessage}
+            onSubmit={handleSubmit}
+          />
+        </div>
       </div>
     </div>
   )
