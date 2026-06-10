@@ -20,6 +20,8 @@ import UserGroups from './pages/UserGroups'
 import Users from './pages/Users'
 import Orders from './pages/Orders'
 import Returns from './pages/Returns'
+import Analytics from './pages/Analytics'
+import NotFound from './pages/NotFound'
 import ProtectedRoute from './routes/ProtectedRoute'
 
 const App = (): ReactElement => (
@@ -58,9 +60,10 @@ const App = (): ReactElement => (
         <Route path="/dashboard/user-groups" element={<UserGroups />} />
         <Route path="/dashboard/orders" element={<Orders />} />
         <Route path="/dashboard/returns" element={<Returns />} />
+        <Route path="/dashboard/analytics" element={<Analytics />} />
       </Route>
     </Route>
-    <Route path="*" element={<Navigate to="/login" replace />} />
+    <Route path="*" element={<NotFound />} />
   </Routes>
 )
 

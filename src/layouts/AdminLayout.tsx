@@ -17,6 +17,7 @@ import {
   Layers,
   ClipboardList,
   RotateCcw,
+  BarChart2,
 } from 'lucide-react'
 import AppShell from '../components/ui/AppShell'
 import { useAuth } from '../hooks/useAuth'
@@ -61,6 +62,7 @@ const AdminLayout = (): ReactElement => {
       title: 'Overview',
       items: [
         { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} />, exact: true },
+        { to: '/dashboard/analytics', label: 'Analytics', icon: <BarChart2 size={18} />, matchPrefix: '/dashboard/analytics' },
       ],
     },
     {

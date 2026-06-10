@@ -104,6 +104,23 @@ const Returns = (): ReactElement => {
       ),
     },
     {
+      key: 'type',
+      header: 'Type',
+      render: (r) =>
+        r.type === 'EXCHANGE' ? (
+          <div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs font-semibold text-indigo-300 ring-1 ring-indigo-500/25">
+              🔄 Exchange
+            </span>
+            <p className="mt-0.5 text-xs text-indigo-400">→ size {r.exchangeSize}</p>
+          </div>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/20">
+            ↩️ Return
+          </span>
+        ),
+    },
+    {
       key: 'reason',
       header: 'Reason',
       render: (r) => (
@@ -215,8 +232,14 @@ const Returns = (): ReactElement => {
       </div>
 
       <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-        Process returns here: <strong>Approve</strong> → <strong>Mark received</strong> → <strong>Refund</strong>.
-        Online payments are refunded via Razorpay automatically. COD orders are marked refunded without a payout.
+        <p>
+          Process returns: <strong>Approve</strong> → <strong>Mark received</strong> → <strong>Refund</strong>.
+          Online payments are refunded via Razorpay automatically.
+        </p>
+        <p className="mt-1 text-amber-200/80">
+          🔄 <strong>Exchange requests</strong> — Approve to confirm the swap, then ship the new size to the customer
+          and mark Received once you get the old item back.
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

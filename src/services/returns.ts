@@ -16,6 +16,9 @@ export type ReturnRequest = {
   orderId: string
   userId: string
   reason: string
+  type?: 'RETURN' | 'EXCHANGE'
+  exchangeSize?: string | null
+  orderItemId?: string | null
   status: ReturnStatus
   adminNote: string | null
   createdAt: string

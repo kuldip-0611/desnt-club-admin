@@ -68,6 +68,13 @@ export const updateProductImageColor = async (
   return data
 }
 
+export const reorderProductImages = async (
+  productId: string,
+  order: { id: string; sortOrder: number }[],
+): Promise<void> => {
+  await api.patch(`/admin/products/${productId}/images/reorder`, { order })
+}
+
 export const deleteProduct = async (id: string): Promise<void> => {
   await api.delete(`/admin/products/${id}`)
 }

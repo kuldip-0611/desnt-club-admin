@@ -101,36 +101,37 @@ const Dashboard = (): ReactElement => {
   ]
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 sm:space-y-8">
+      {/* Page header */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Dashboard</h1>
-          <p className="mt-1 text-sm text-slate-400">Welcome back — here's what's happening.</p>
+          <h1 className="text-xl font-bold tracking-tight text-white sm:text-3xl">Dashboard</h1>
+          <p className="mt-0.5 text-sm text-slate-400">Welcome back — here's what's happening.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <TrendingUp size={16} className="text-indigo-400" />
-          <span className="text-sm text-slate-400">Live overview</span>
+        <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5">
+          <TrendingUp size={14} className="text-indigo-400" />
+          <span className="text-xs font-medium text-slate-400">Live overview</span>
         </div>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Stats grid — 2 columns on mobile, 3 on desktop */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         {stats.map((stat) => {
           const styles = toneStyles[stat.tone]
           const inner = (
-            <div className={`rounded-2xl border border-white/10 p-5 transition-all ${styles.bg} ${stat.link ? 'hover:border-white/20 cursor-pointer' : ''}`}>
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{stat.label}</p>
-                  <p className={`mt-2 text-3xl font-bold tabular-nums ${styles.value}`}>
+            <div className={`rounded-xl border border-white/10 p-3.5 sm:rounded-2xl sm:p-5 transition-all ${styles.bg} ${stat.link ? 'hover:border-white/20 cursor-pointer active:scale-[0.98]' : ''}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-xs">{stat.label}</p>
+                  <p className={`mt-1.5 text-2xl font-bold tabular-nums sm:mt-2 sm:text-3xl ${styles.value}`}>
                     {isLoading ? '—' : (stat.value ?? 0)}
                   </p>
                 </div>
-                <span className={`mt-1 ${styles.icon}`}>{stat.icon}</span>
+                <span className={`mt-0.5 shrink-0 ${styles.icon}`}>{stat.icon}</span>
               </div>
               {stat.link && (
-                <div className={`mt-3 flex items-center gap-1 text-xs font-medium ${styles.icon}`}>
-                  View all <ArrowRight size={11} />
+                <div className={`mt-2 flex items-center gap-1 text-[10px] font-medium sm:mt-3 sm:text-xs ${styles.icon}`}>
+                  View all <ArrowRight size={10} />
                 </div>
               )}
             </div>
@@ -144,26 +145,26 @@ const Dashboard = (): ReactElement => {
       </div>
 
       {/* Quick actions */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Quick Actions</p>
-        <div className="mt-4 flex flex-wrap gap-3">
+      <div className="rounded-xl border border-white/10 bg-white/5 p-4 sm:rounded-2xl sm:p-6">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 sm:text-xs">Quick Actions</p>
+        <div className="mt-3 flex flex-wrap gap-2 sm:mt-4 sm:gap-3">
           <Link
             to="/dashboard/products/new"
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-900/40 hover:bg-indigo-500 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-900/40 hover:bg-indigo-500 transition-colors sm:rounded-xl sm:px-4 sm:py-2.5 sm:text-sm sm:gap-2"
           >
-            <Plus size={15} /> Add Product
+            <Plus size={13} /> Add Product
           </Link>
           <Link
             to="/dashboard/orders"
-            className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/10 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition-colors sm:rounded-xl sm:px-4 sm:py-2.5 sm:text-sm sm:gap-2"
           >
-            <ClipboardList size={15} /> View Orders
+            <ClipboardList size={13} /> View Orders
           </Link>
           <Link
             to="/dashboard/coupons/new"
-            className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/10 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition-colors sm:rounded-xl sm:px-4 sm:py-2.5 sm:text-sm sm:gap-2"
           >
-            <TicketPercent size={15} /> Create Coupon
+            <TicketPercent size={13} /> Create Coupon
           </Link>
         </div>
       </div>
@@ -171,15 +172,17 @@ const Dashboard = (): ReactElement => {
       {/* Recent products table */}
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">
-            Recently Updated Products
+          <h2 className="text-base font-semibold text-white sm:text-lg">
+            Recent Products
             {isLoading && <span className="ml-2 text-sm font-normal text-slate-500">(loading…)</span>}
           </h2>
-          <Link to="/dashboard/products" className="flex items-center gap-1 text-sm font-medium text-indigo-400 hover:text-indigo-300">
-            View all <ArrowRight size={14} />
+          <Link to="/dashboard/products" className="flex items-center gap-1 text-xs font-medium text-indigo-400 hover:text-indigo-300 sm:text-sm">
+            View all <ArrowRight size={12} />
           </Link>
         </div>
-        <DataTable columns={columns} rows={recent} rowKey={(row) => row.id} emptyText="No products yet." />
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <DataTable columns={columns} rows={recent} rowKey={(row) => row.id} emptyText="No products yet." />
+        </div>
       </div>
     </div>
   )

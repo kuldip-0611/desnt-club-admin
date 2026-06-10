@@ -5,6 +5,22 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useMatch, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import * as Yup from 'yup'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { GripVertical } from 'lucide-react'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import {
   appendProductImages,
@@ -12,6 +28,7 @@ import {
   deleteProductImage,
   getProduct,
   productImageUrl,
+  reorderProductImages,
   updateProductImageColor,
   updateProduct,
 } from '../services/products'
@@ -271,6 +288,110 @@ const SubcategorySelect = ({
   )
 }
 
+// ─── Sortable Image Item ──────────────────────────────────────────────────────
+type SortableImageProps = {
+  img: { id: string; path: string; color?: string; sortOrder: number }
+  onColorBlur: (imageId: string, color: string) => void
+  onDelete: (imageId: string) => void
+  deletePending: boolean
+}
+
+const SortableImage = ({ img, onColorBlur, onDelete, deletePending }: SortableImageProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: img.id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
+  return (
+    <div ref={setNodeRef} style={style} className="relative w-24 space-y-1">
+      <div className="relative">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="absolute left-0 top-0 z-10 cursor-grab rounded-bl-lg rounded-tr-lg bg-slate-900/60 p-0.5 text-white hover:bg-slate-900/80 active:cursor-grabbing"
+          title="Drag to reorder"
+        >
+          <GripVertical size={12} />
+        </button>
+        <img
+          src={productImageUrl(img.path)}
+          alt=""
+          className="h-24 w-24 rounded-lg border border-slate-200 object-cover"
+        />
+        <button
+          type="button"
+          onClick={() => onDelete(img.id)}
+          disabled={deletePending}
+          className="absolute -right-2 -top-2 rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white shadow hover:bg-red-500 disabled:opacity-50"
+        >
+          ×
+        </button>
+      </div>
+      <input
+        type="text"
+        defaultValue={img.color ?? ''}
+        placeholder="Color name"
+        className="w-24 rounded border border-slate-300 px-1.5 py-1 text-[10px] outline-none focus:border-indigo-500"
+        onBlur={(e) => {
+          const next = e.target.value.trim()
+          if ((img.color ?? '') !== next) onColorBlur(img.id, next)
+        }}
+      />
+    </div>
+  )
+}
+
+type SortableImageGridProps = {
+  images: { id: string; path: string; color?: string; sortOrder: number }[]
+  onReorder: (order: { id: string; sortOrder: number }[]) => void
+  onColorBlur: (imageId: string, color: string) => void
+  onDelete: (imageId: string) => void
+  deletePending: boolean
+}
+
+const SortableImageGrid = ({ images, onReorder, onColorBlur, onDelete, deletePending }: SortableImageGridProps) => {
+  const [items, setItems] = useState(() => [...images].sort((a, b) => a.sortOrder - b.sortOrder))
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  // Keep items in sync if images prop changes (e.g. after delete)
+  useEffect(() => {
+    setItems([...images].sort((a, b) => a.sortOrder - b.sortOrder))
+  }, [images])
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = items.findIndex((i) => i.id === active.id)
+    const newIndex = items.findIndex((i) => i.id === over.id)
+    const reordered = arrayMove(items, oldIndex, newIndex)
+    setItems(reordered)
+    onReorder(reordered.map((img, idx) => ({ id: img.id, sortOrder: idx })))
+  }
+
+  return (
+    <div>
+      <p className="mb-2 text-sm font-medium text-slate-700">
+        Current images <span className="text-xs font-normal text-slate-400">(drag to reorder — first image is thumbnail)</span>
+      </p>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
+          <div className="flex flex-wrap gap-3">
+            {items.map((img) => (
+              <SortableImage
+                key={img.id}
+                img={img}
+                onColorBlur={onColorBlur}
+                onDelete={onDelete}
+                deletePending={deletePending}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </div>
+  )
+}
+
+// ─── Main Form ────────────────────────────────────────────────────────────────
+
 const ProductForm = (): ReactElement => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -368,6 +489,17 @@ const ProductForm = (): ReactElement => {
       toast.success('Image removed')
     },
     onError: (err: Error) => toast.error(err.message ?? 'Remove failed'),
+  })
+
+  const reorderImagesMutation = useMutation({
+    mutationFn: (order: { id: string; sortOrder: number }[]) => {
+      if (!productId) throw new Error('Invalid product')
+      return reorderProductImages(productId, order)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-product', productId] })
+    },
+    onError: (err: Error) => toast.error(err.message ?? 'Reorder failed'),
   })
 
   const updateImageColorMutation = useMutation({
@@ -1251,41 +1383,13 @@ const ProductForm = (): ReactElement => {
               </div>
 
               {!isCreate && existing?.images?.length ? (
-                <div>
-                  <p className="mb-2 text-sm font-medium text-slate-700">Current images</p>
-                  <div className="flex flex-wrap gap-3">
-                    {existing.images.map((img) => (
-                      <div key={img.id} className="relative space-y-1">
-                        <img
-                          src={productImageUrl(img.path)}
-                          alt=""
-                          className="h-24 w-24 rounded-lg border border-slate-200 object-cover"
-                        />
-                        <input
-                          type="text"
-                          defaultValue={img.color ?? ''}
-                          placeholder="Color name"
-                          className="w-24 rounded border border-slate-300 px-1.5 py-1 text-[10px] outline-none focus:border-indigo-500"
-                          onBlur={(event) => {
-                            const nextColor = event.target.value.trim()
-                            if ((img.color ?? '') === nextColor || updateImageColorMutation.isPending) return
-                            updateImageColorMutation.mutate({ imageId: img.id, color: nextColor })
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setImageToDelete(img.id)
-                          }}
-                          disabled={deleteImageMutation.isPending}
-                          className="absolute -right-2 -top-2 rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white shadow hover:bg-red-500 disabled:opacity-50"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <SortableImageGrid
+                  images={existing.images}
+                  onReorder={(newOrder) => reorderImagesMutation.mutate(newOrder)}
+                  onColorBlur={(imageId, color) => updateImageColorMutation.mutate({ imageId, color })}
+                  onDelete={(imageId) => setImageToDelete(imageId)}
+                  deletePending={deleteImageMutation.isPending}
+                />
               ) : null}
 
               <button
