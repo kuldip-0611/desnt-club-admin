@@ -2,10 +2,13 @@ import baseUrl from '../config'
 import api from './api'
 import type { Product, UpdateProductPayload } from '../types/product'
 
+export type StockStatus = 'ALL' | 'OUT_OF_STOCK' | 'LOW_STOCK' | 'IN_STOCK'
+
 export type ListProductsParams = {
   page?: number
   limit?: number
   search?: string
+  stockStatus?: Exclude<StockStatus, 'ALL'>
 }
 
 export type PaginatedProductsResponse = {
@@ -73,6 +76,15 @@ export const reorderProductImages = async (
   order: { id: string; sortOrder: number }[],
 ): Promise<void> => {
   await api.patch(`/admin/products/${productId}/images/reorder`, { order })
+}
+
+export const updateProductStock = async (id: string, quantity: number): Promise<void> => {
+  await api.patch(`/admin/products/${id}`, { quantity })
+}
+
+export const importProductsCsv = async (rows: { name: string; price: number; quantity: number }[]): Promise<{ imported: number }> => {
+  const { data } = await api.post<{ imported: number }>('/admin/products/import', { rows })
+  return data
 }
 
 export const deleteProduct = async (id: string): Promise<void> => {

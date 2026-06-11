@@ -18,6 +18,11 @@ import {
   ClipboardList,
   RotateCcw,
   BarChart2,
+  Archive,
+  Image,
+  Zap,
+  Bell,
+  Package2,
 } from 'lucide-react'
 import AppShell from '../components/ui/AppShell'
 import { useAuth } from '../hooks/useAuth'
@@ -69,6 +74,7 @@ const AdminLayout = (): ReactElement => {
       title: 'Catalog',
       items: [
         { to: '/dashboard/products', label: 'Products', icon: <Package size={18} />, matchPrefix: '/dashboard/products' },
+        { to: '/dashboard/inventory', label: 'Inventory', icon: <Archive size={18} />, matchPrefix: '/dashboard/inventory' },
         { to: '/dashboard/product-categories', label: 'Categories', icon: <Layers size={18} />, matchPrefix: '/dashboard/product-categories' },
         { to: '/dashboard/fabrics', label: 'Fabrics', icon: <Scissors size={18} />, matchPrefix: '/dashboard/fabrics' },
       ],
@@ -91,6 +97,15 @@ const AdminLayout = (): ReactElement => {
       title: 'Promotions',
       items: [
         { to: '/dashboard/coupons', label: 'Coupons', icon: <TicketPercent size={18} />, matchPrefix: '/dashboard/coupons' },
+        { to: '/dashboard/flash-sales', label: 'Flash Sales', icon: <Zap size={18} />, matchPrefix: '/dashboard/flash-sales' },
+        { to: '/dashboard/bundles', label: 'Bundles', icon: <Package2 size={18} />, matchPrefix: '/dashboard/bundles' },
+      ],
+    },
+    {
+      title: 'Marketing',
+      items: [
+        { to: '/dashboard/banners', label: 'Banners', icon: <Image size={18} />, matchPrefix: '/dashboard/banners' },
+        { to: '/dashboard/broadcasts', label: 'Broadcasts', icon: <Bell size={18} />, matchPrefix: '/dashboard/broadcasts' },
       ],
     },
     {

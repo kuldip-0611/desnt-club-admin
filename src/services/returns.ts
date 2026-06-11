@@ -60,6 +60,11 @@ export const listReturns = async (params: {
   return data
 }
 
+export const getReturn = async (id: string): Promise<ReturnRequest> => {
+  const { data } = await api.get<ReturnRequest>(`/admin/returns/${id}`)
+  return data
+}
+
 export const updateReturnStatus = async (
   returnId: string,
   payload: { status: ReturnStatus; adminNote?: string },

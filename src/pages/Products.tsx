@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
@@ -11,11 +11,27 @@ import { useDebounce } from '../hooks/useDebounce'
 import {
   deleteProduct,
   listProducts,
+  importProductsCsv,
   type PaginatedProductsResponse,
   productImageUrl,
   updateProduct,
 } from '../services/products'
 import type { Product } from '../types/product'
+import { useRef } from 'react'
+
+const downloadCsv = (filename: string, rows: string[][]) => {
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
+
+const parseCsvText = (text: string): string[][] => {
+  return text.trim().split('\n').map(line =>
+    line.split(',').map(cell => cell.trim().replace(/^"|"$/g, '').replace(/""/g, '"'))
+  )
+}
 
 const fabricDisplay = (p: Product): string | null => {
   if (p.productFabrics?.length) {
@@ -28,6 +44,7 @@ const LOW_STOCK_THRESHOLD = 5
 
 const Products = (): ReactElement => {
   const queryClient = useQueryClient()
+  const csvInputRef = useRef<HTMLInputElement>(null)
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search.trim(), 350)
   const pageSize = 20
@@ -250,6 +267,63 @@ const Products = (): ReactElement => {
     onError: (err: Error) => toast.error(err.message ?? 'Update failed'),
   })
 
+  const importMutation = useMutation({
+    mutationFn: importProductsCsv,
+    onSuccess: (res) => {
+      toast.success(`Imported ${res.imported} products`)
+      void queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+    },
+    onError: () => toast.error('Import failed — the backend endpoint may not exist yet.'),
+  })
+
+  const handleExportCsv = () => {
+    const rows: string[][] = [
+      ['id', 'name', 'price', 'quantity', 'category', 'isAvailable'],
+      ...products.map(p => [
+        p.id,
+        p.name,
+        String(p.price),
+        String(p.quantity),
+        p.category?.name ?? '',
+        String(p.isAvailable),
+      ]),
+    ]
+    downloadCsv(`products-${new Date().toISOString().slice(0, 10)}.csv`, rows)
+  }
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const text = ev.target?.result as string
+        const rows = parseCsvText(text)
+        const header = rows[0]?.map(h => h.toLowerCase()) ?? []
+        const nameIdx = header.indexOf('name')
+        const priceIdx = header.indexOf('price')
+        const qtyIdx = header.indexOf('quantity')
+        if (nameIdx === -1 || priceIdx === -1 || qtyIdx === -1) {
+          toast.error('CSV must have columns: name, price, quantity')
+          return
+        }
+        const importRows = rows.slice(1).map(row => ({
+          name: row[nameIdx] ?? '',
+          price: parseFloat(row[priceIdx] ?? '0') || 0,
+          quantity: parseInt(row[qtyIdx] ?? '0', 10) || 0,
+        })).filter(r => r.name)
+        if (importRows.length === 0) { toast.error('No valid rows found'); return }
+        const ok = window.confirm(`Import ${importRows.length} products?`)
+        if (ok) importMutation.mutate(importRows)
+      } catch {
+        toast.error('Failed to parse CSV')
+      }
+    }
+    reader.readAsText(file)
+    // Reset input
+    e.target.value = ''
+  }
+
   const handleDelete = (product: Product) => {
     setProductToDelete(product)
   }
@@ -287,12 +361,31 @@ const Products = (): ReactElement => {
             Inventory, availability, and images. Use the sidebar to add products or edit here.
           </p>
         </div>
-        <Link
-          to="/dashboard/products/new"
-          className="inline-flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-900/20 transition hover:bg-indigo-500"
-        >
-          + Add product
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={products.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+          >
+            ↓ Export CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => csvInputRef.current?.click()}
+            disabled={importMutation.isPending}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+          >
+            ↑ Import CSV
+          </button>
+          <input ref={csvInputRef} type="file" accept=".csv,text/csv" onChange={handleImportFile} className="hidden" />
+          <Link
+            to="/dashboard/products/new"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-900/20 transition hover:bg-indigo-500"
+          >
+            + Add product
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}

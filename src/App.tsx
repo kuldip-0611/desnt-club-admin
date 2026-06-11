@@ -20,7 +20,13 @@ import UserGroups from './pages/UserGroups'
 import Users from './pages/Users'
 import Orders from './pages/Orders'
 import Returns from './pages/Returns'
+import ReturnDetail from './pages/ReturnDetail'
+import Inventory from './pages/Inventory'
+import Banners from './pages/Banners'
+import FlashSales from './pages/FlashSales'
+import Broadcasts from './pages/Broadcasts'
 import Analytics from './pages/Analytics'
+import Bundles from './pages/Bundles'
 import NotFound from './pages/NotFound'
 import ProtectedRoute from './routes/ProtectedRoute'
 
@@ -60,7 +66,13 @@ const App = (): ReactElement => (
         <Route path="/dashboard/user-groups" element={<UserGroups />} />
         <Route path="/dashboard/orders" element={<Orders />} />
         <Route path="/dashboard/returns" element={<Returns />} />
+        <Route path="/dashboard/returns/:id" element={<ReturnDetail />} />
+        <Route path="/dashboard/inventory" element={<Inventory />} />
+        <Route path="/dashboard/banners" element={<Banners />} />
+        <Route path="/dashboard/flash-sales" element={<FlashSales />} />
+        <Route path="/dashboard/broadcasts" element={<Broadcasts />} />
         <Route path="/dashboard/analytics" element={<Analytics />} />
+        <Route path="/dashboard/bundles" element={<Bundles />} />
       </Route>
     </Route>
     <Route path="*" element={<NotFound />} />

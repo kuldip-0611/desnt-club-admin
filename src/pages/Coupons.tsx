@@ -115,8 +115,32 @@ const Coupons = (): ReactElement => {
       render: (c) => <span className="text-slate-600">{formatDate(c.endsAt)}</span>,
     },
     {
+      key: 'status',
+      header: 'Status',
+      render: (c) => {
+        const now = new Date()
+        const expired = c.endsAt ? new Date(c.endsAt) < now : false
+        const limitReached = c.usageLimit != null && c.usedCount >= c.usageLimit
+        const label = !c.isActive
+          ? 'Inactive'
+          : expired
+            ? 'Expired'
+            : limitReached
+              ? 'Limit reached'
+              : 'Active'
+        const cls = !c.isActive || expired || limitReached
+          ? 'bg-red-100 text-red-700'
+          : 'bg-emerald-100 text-emerald-800'
+        return (
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${cls}`}>
+            {label}
+          </span>
+        )
+      },
+    },
+    {
       key: 'active',
-      header: 'Active',
+      header: 'Toggle',
       render: (c) => (
         <button
           type="button"

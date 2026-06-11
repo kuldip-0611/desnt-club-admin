@@ -5,9 +5,17 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
-import { TrendingUp, ShoppingCart, Users, Package, BarChart2 } from 'lucide-react'
+import { TrendingUp, ShoppingCart, Users, Package, BarChart2, Download, Printer } from 'lucide-react'
 import api from '../services/api'
 import { productImageUrl } from '../services/products'
+
+const downloadCsv = (filename: string, rows: string[][]) => {
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
 
 type Period = 'daily' | 'weekly' | 'monthly'
 
@@ -83,6 +91,21 @@ const Analytics = (): ReactElement => {
     },
   })
 
+  const handleExportCsv = () => {
+    if (!data) return
+    const rows: string[][] = [
+      ['Period', 'Label', 'Revenue', 'Orders', 'New Users'],
+      ...data.revenueChart.map((d, i) => [
+        period,
+        d.label,
+        String(d.revenue),
+        String(data.orderCountChart[i]?.orders ?? ''),
+        String(data.newUsersChart[i]?.users ?? ''),
+      ]),
+    ]
+    downloadCsv(`analytics-${period}-${new Date().toISOString().slice(0, 10)}.csv`, rows)
+  }
+
   const totalRevenue = data?.revenueChart.reduce((s, d) => s + d.revenue, 0) ?? 0
   const totalOrders = data?.orderCountChart.reduce((s, d) => s + d.orders, 0) ?? 0
   const totalNewUsers = data?.newUsersChart.reduce((s, d) => s + d.users, 0) ?? 0
@@ -102,11 +125,31 @@ const Analytics = (): ReactElement => {
 
   return (
     <div className="space-y-6 sm:space-y-8">
+      <style media="print">{`
+        aside, header, .print\\:hidden { display: none !important; }
+        .lg\\:pl-64 { padding-left: 0 !important; }
+        body { background: white !important; color: black !important; }
+      `}</style>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white sm:text-3xl">Analytics</h1>
           <p className="mt-0.5 text-sm text-slate-400">Revenue, orders, and growth trends</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleExportCsv}
+            disabled={!data}
+            className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10 disabled:opacity-40 print:hidden"
+          >
+            <Download size={13} /> Export CSV
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10 print:hidden"
+          >
+            <Printer size={13} /> Export PDF
+          </button>
         </div>
         <div className="flex rounded-xl border border-white/10 bg-white/5 p-1">
           {(['daily', 'weekly', 'monthly'] as Period[]).map((p) => (
