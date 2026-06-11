@@ -7,7 +7,7 @@ import type { AxiosError } from 'axios'
 import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
 import { listReturns, updateReturnStatus, type ReturnRequest, type ReturnStatus } from '../services/returns'
 
-const RETURN_STATUSES: ReturnStatus[] = ['REQUESTED', 'APPROVED', 'REJECTED', 'RECEIVED', 'REFUNDED']
+const RETURN_STATUSES: ReturnStatus[] = ['REQUESTED', 'APPROVED', 'REJECTED', 'RECEIVED', 'REFUNDED', 'EXCHANGED']
 
 const statusClasses: Record<ReturnStatus, string> = {
   REQUESTED: 'bg-amber-500/10 text-amber-400 ring-amber-500/20',
@@ -15,12 +15,19 @@ const statusClasses: Record<ReturnStatus, string> = {
   REJECTED: 'bg-red-500/10 text-red-400 ring-red-500/20',
   RECEIVED: 'bg-violet-500/10 text-violet-400 ring-violet-500/20',
   REFUNDED: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20',
+  EXCHANGED: 'bg-indigo-500/10 text-indigo-400 ring-indigo-500/20',
 }
 
-const nextActions: Partial<Record<ReturnStatus, ReturnStatus[]>> = {
-  REQUESTED: ['APPROVED', 'REJECTED'],
-  APPROVED: ['RECEIVED', 'REJECTED'],
-  RECEIVED: ['REFUNDED'],
+/** Next allowed transitions depend on the request type */
+const nextActionsFor = (r: ReturnRequest): ReturnStatus[] => {
+  const isExchange = r.type === 'EXCHANGE'
+  const map: Partial<Record<ReturnStatus, ReturnStatus[]>> = {
+    REQUESTED: ['APPROVED', 'REJECTED'],
+    APPROVED: ['RECEIVED', 'REJECTED'],
+    // Exchange goes to EXCHANGED (dispatch new size); return goes to REFUNDED
+    RECEIVED: isExchange ? ['EXCHANGED'] : ['REFUNDED'],
+  }
+  return map[r.status] ?? []
 }
 
 const paymentLabel = (method: 'ONLINE' | 'COD' | undefined) =>
@@ -62,6 +69,23 @@ const Returns = (): ReactElement => {
     if (!status) return
 
     const payment = returnRequest.order.payment
+    const isExchange = returnRequest.type === 'EXCHANGE'
+
+    if (status === 'APPROVED') {
+      const action = isExchange ? 'size exchange' : 'return'
+      const confirmed = window.confirm(
+        `Approve this ${action} and create a Shiprocket reverse pickup?\n\nCustomer: ${returnRequest.user.name}\nOrder: ${returnRequest.orderId.slice(0, 8)}…${isExchange ? `\nRequested size: ${returnRequest.exchangeSize}` : ''}`,
+      )
+      if (!confirmed) return
+    }
+
+    if (status === 'EXCHANGED') {
+      const confirmed = window.confirm(
+        `Dispatch size ${returnRequest.exchangeSize} to the customer via Shiprocket?\n\nThis will create a new forward shipment. Make sure the item is packed and ready.`,
+      )
+      if (!confirmed) return
+    }
+
     if (status === 'REFUNDED' && payment?.method === 'ONLINE' && payment.status === 'PAID') {
       const amount = (payment.amount / 100).toFixed(2)
       const confirmed = window.confirm(
@@ -79,6 +103,7 @@ const Returns = (): ReactElement => {
   const pendingCount = returns.filter((r) =>
     ['REQUESTED', 'APPROVED', 'RECEIVED'].includes(r.status),
   ).length
+  const exchangePendingCount = returns.filter((r) => r.type === 'EXCHANGE' && r.status === 'RECEIVED').length
 
   const columns: DataTableColumn<ReturnRequest>[] = [
     {
@@ -178,15 +203,63 @@ const Returns = (): ReactElement => {
       ),
     },
     {
+      key: 'shiprocket',
+      header: 'Shiprocket',
+      render: (r) => (
+        <div className="space-y-1 text-xs">
+          {r.returnAwbCode ? (
+            <div>
+              <span className="text-slate-500">↩ AWB: </span>
+              <a
+                href={`https://shiprocket.co/tracking/${r.returnAwbCode}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-blue-400 hover:underline"
+              >
+                {r.returnAwbCode}
+              </a>
+              {r.returnCourierName ? <span className="text-slate-500"> ({r.returnCourierName})</span> : null}
+            </div>
+          ) : r.returnShipmentId ? (
+            <p className="text-slate-500">↩ Pickup created (AWB pending)</p>
+          ) : null}
+          {r.exchangeAwbCode ? (
+            <div>
+              <span className="text-slate-500">🔄 AWB: </span>
+              <a
+                href={`https://shiprocket.co/tracking/${r.exchangeAwbCode}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-indigo-400 hover:underline"
+              >
+                {r.exchangeAwbCode}
+              </a>
+              {r.exchangeCourierName ? (
+                <span className="text-slate-500"> ({r.exchangeCourierName})</span>
+              ) : null}
+            </div>
+          ) : r.exchangeShipmentId ? (
+            <p className="text-slate-500">🔄 Exchange created (AWB pending)</p>
+          ) : null}
+          {!r.returnShipmentId && !r.exchangeShipmentId ? (
+            <span className="text-slate-600">—</span>
+          ) : null}
+        </div>
+      ),
+    },
+    {
       key: 'actions',
       header: 'Action',
       render: (r) => {
-        const options = nextActions[r.status] ?? []
+        const options = nextActionsFor(r)
         if (options.length === 0) {
+          if (r.status === 'EXCHANGED') {
+            return <span className="text-xs text-indigo-400">Exchange done ✓</span>
+          }
           if (r.order.payment?.razorpayRefundId) {
             return (
               <span className="text-xs text-emerald-400" title={r.order.payment.razorpayRefundId}>
-                Refunded
+                Refunded ✓
               </span>
             )
           }
@@ -205,8 +278,13 @@ const Returns = (): ReactElement => {
             <option value="">Update…</option>
             {options.map((s) => (
               <option key={s} value={s}>
-                Mark {s}
-                {s === 'REFUNDED' && r.order.payment?.method === 'ONLINE' ? ' (+ Razorpay)' : ''}
+                {s === 'APPROVED' ? `Approve${r.type === 'EXCHANGE' ? ' + create pickup' : ' + create pickup'}` :
+                 s === 'RECEIVED' ? 'Mark received' :
+                 s === 'EXCHANGED' ? `Dispatch size ${r.exchangeSize} →` :
+                 s === 'REFUNDED' && r.order.payment?.method === 'ONLINE' ? 'Refund via Razorpay' :
+                 s === 'REFUNDED' ? 'Mark refunded (COD)' :
+                 s === 'REJECTED' ? 'Reject' :
+                 `Mark ${s}`}
               </option>
             ))}
           </select>
@@ -231,15 +309,24 @@ const Returns = (): ReactElement => {
         </div>
       </div>
 
-      <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-        <p>
-          Process returns: <strong>Approve</strong> → <strong>Mark received</strong> → <strong>Refund</strong>.
-          Online payments are refunded via Razorpay automatically.
-        </p>
-        <p className="mt-1 text-amber-200/80">
-          🔄 <strong>Exchange requests</strong> — Approve to confirm the swap, then ship the new size to the customer
-          and mark Received once you get the old item back.
-        </p>
+      <div className="space-y-2">
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          <p className="font-semibold">↩️ Return flow</p>
+          <p className="mt-0.5 text-amber-200/80">
+            <strong>Approve</strong> (creates Shiprocket reverse pickup) → <strong>Mark Received</strong> (item arrived at warehouse) → <strong>Refund</strong> (processes Razorpay refund automatically)
+          </p>
+        </div>
+        <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-100">
+          <p className="font-semibold">🔄 Size Exchange flow</p>
+          <p className="mt-0.5 text-indigo-200/80">
+            <strong>Approve</strong> (creates Shiprocket reverse pickup from customer) → <strong>Mark Received</strong> (old item back at warehouse) → <strong>Dispatch new size</strong> (creates Shiprocket forward order for new size)
+          </p>
+          {exchangePendingCount > 0 && (
+            <p className="mt-1 font-semibold text-indigo-300">
+              ⚠️ {exchangePendingCount} exchange{exchangePendingCount > 1 ? 's' : ''} ready to dispatch!
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

@@ -1,6 +1,6 @@
 import api from './api'
 
-export type ReturnStatus = 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'RECEIVED' | 'REFUNDED'
+export type ReturnStatus = 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'RECEIVED' | 'REFUNDED' | 'EXCHANGED'
 
 export type ReturnPayment = {
   status: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
@@ -21,6 +21,16 @@ export type ReturnRequest = {
   orderItemId?: string | null
   status: ReturnStatus
   adminNote: string | null
+  // Shiprocket reverse pickup
+  returnShiprocketOrderId?: string | null
+  returnShipmentId?: string | null
+  returnAwbCode?: string | null
+  returnCourierName?: string | null
+  // Shiprocket exchange forward
+  exchangeShiprocketOrderId?: string | null
+  exchangeShipmentId?: string | null
+  exchangeAwbCode?: string | null
+  exchangeCourierName?: string | null
   createdAt: string
   updatedAt: string
   order: {

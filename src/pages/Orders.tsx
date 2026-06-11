@@ -7,7 +7,7 @@ import { Package, ShoppingCart, Clock, CheckCircle2, Truck, XCircle, RotateCcw }
 import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
 import FilterBar from '../components/ui/FilterBar'
 import { useDebounce } from '../hooks/useDebounce'
-import { listOrders, updateOrderStatus, type Order } from '../services/orders'
+import { listOrders, markCodRemitted, updateOrderStatus, type Order } from '../services/orders'
 
 const ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'] as const
 
@@ -67,6 +67,15 @@ const Orders = (): ReactElement => {
     onError: () => toast.error('Failed to update status'),
   })
 
+  const codRemittanceMutation = useMutation({
+    mutationFn: ({ id, ref }: { id: string; ref?: string }) => markCodRemitted(id, ref),
+    onSuccess: (result) => {
+      toast.success(result.message)
+      void queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
+    },
+    onError: () => toast.error('Failed to mark COD as remitted'),
+  })
+
   const orders = data?.items ?? []
   const total = data?.total ?? 0
   const totalPages = data?.totalPages ?? 1
@@ -106,13 +115,27 @@ const Orders = (): ReactElement => {
       header: 'Payment',
       render: (o) => {
         const ps = o.payment?.status ?? 'PENDING'
-        const method = o.payment?.method === 'COD' ? 'COD' : 'Online'
+        const isCod = o.payment?.method === 'COD'
+        const method = isCod ? 'COD' : 'Online'
+        const canMarkRemitted = isCod && ps === 'PENDING' && o.status === 'DELIVERED'
         return (
           <div className="space-y-1">
             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ${paymentStatusClasses[ps] ?? ''}`}>
               {ps}
             </span>
             <p className="text-[10px] text-slate-500">{method}</p>
+            {canMarkRemitted && (
+              <button
+                onClick={() => {
+                  const ref = window.prompt('Shiprocket remittance reference (optional):') ?? undefined
+                  codRemittanceMutation.mutate({ id: o.id, ref: ref || undefined })
+                }}
+                disabled={codRemittanceMutation.isPending}
+                className="mt-1 block rounded bg-emerald-600/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 hover:bg-emerald-600/30 disabled:opacity-50"
+              >
+                Mark remitted
+              </button>
+            )}
           </div>
         )
       },

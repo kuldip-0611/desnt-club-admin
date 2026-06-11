@@ -57,3 +57,13 @@ export const updateOrderStatus = async (
   const { data } = await api.patch<{ message: string }>(`/admin/orders/${orderId}/status`, { status })
   return data
 }
+
+export const markCodRemitted = async (
+  orderId: string,
+  remittanceRef?: string,
+): Promise<{ message: string }> => {
+  const { data } = await api.patch<{ message: string }>(`/admin/orders/${orderId}/cod-remittance`, {
+    remittanceRef,
+  })
+  return data
+}
