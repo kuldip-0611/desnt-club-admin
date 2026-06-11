@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { TrendingUp, ShoppingCart, Users, Package, BarChart2, Download, Printer } from 'lucide-react'
 import api from '../services/api'
@@ -38,8 +38,6 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELLED: '#ef4444',
   REFUNDED: '#6b7280',
 }
-
-const CHART_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#f97316', '#84cc16']
 
 const formatRevenue = (v: number) =>
   v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : v >= 1000 ? `₹${(v / 1000).toFixed(1)}K` : `₹${v}`

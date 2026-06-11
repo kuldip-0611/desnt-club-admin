@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Home, ArrowLeft, Search, LayoutDashboard } from 'lucide-react'
+import { ArrowLeft, Search, LayoutDashboard } from 'lucide-react'
 
 const NotFound = (): ReactElement => {
   const navigate = useNavigate()

@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import { Plus, Pencil, Trash2, X, UploadCloud, Image as ImageIcon } from 'lucide-react'
+import baseUrl from '../config'
 import {
   listBanners,
   createBanner,
@@ -10,8 +11,6 @@ import {
   deleteBanner,
   type Banner,
 } from '../services/banners'
-
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3001'
 
 type Position = 'hero' | 'mid' | 'footer'
 const POSITIONS: Position[] = ['hero', 'mid', 'footer']
@@ -32,7 +31,7 @@ const emptyForm = (): Partial<Banner> => ({
 function resolveImageSrc(url: string | undefined): string {
   if (!url) return ''
   if (url.startsWith('http')) return url
-  return `${API_BASE}${url}`
+  return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`
 }
 
 // ── BannerModal ────────────────────────────────────────────────────────────────
