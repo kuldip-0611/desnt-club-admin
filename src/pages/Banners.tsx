@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import { Plus, Pencil, Trash2, X, UploadCloud, Image as ImageIcon } from 'lucide-react'
-import baseUrl from '../config'
+import baseUrl, { siteUrl } from '../config'
 import {
   listBanners,
   createBanner,
@@ -205,7 +205,7 @@ const BannerModal = ({
               <input
                 value={form.linkUrl ?? ''}
                 onChange={e => set('linkUrl', e.target.value)}
-                placeholder="https://desentclub.com/products?category=sale"
+                placeholder={`${siteUrl}/products?category=sale`}
                 className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>

@@ -49,3 +49,33 @@ export const updateUserByAdmin = async (
   const { data } = await api.patch<User>(`/admin/users/${id}`, payload)
   return data
 }
+
+export interface LoyaltyAccountAdmin {
+  id: string
+  balance: number
+  totalEarned: number
+  totalRedeemed: number
+  transactions: Array<{
+    id: string
+    type: string
+    points: number
+    description: string
+    createdAt: string
+  }>
+}
+
+export const getUserLoyalty = async (userId: string): Promise<LoyaltyAccountAdmin> => {
+  const { data } = await api.get<LoyaltyAccountAdmin>(`/admin/loyalty/${userId}`)
+  return data
+}
+
+export const adjustUserLoyalty = async (
+  userId: string,
+  payload: { points: number; reason: string; adminNote?: string },
+): Promise<{ newBalance: number; adjustedBy: number; previousBalance: number }> => {
+  const { data } = await api.patch<{ newBalance: number; adjustedBy: number; previousBalance: number }>(
+    `/admin/loyalty/${userId}/adjust`,
+    payload,
+  )
+  return data
+}

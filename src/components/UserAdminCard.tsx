@@ -6,6 +6,8 @@ import { listCoupons } from '../services/coupons'
 import {
   assignCouponToUser,
   getUserAdminDetail,
+  getUserLoyalty,
+  adjustUserLoyalty,
   unassignCouponFromUser,
   updateUserByAdmin,
   validateCouponForUser,
@@ -22,12 +24,27 @@ const formatDiscount = (type: string, value: string): string => {
   return `₹${n.toFixed(2)} off`
 }
 
+const TX_TYPE_COLOR: Record<string, string> = {
+  EARNED: 'text-green-600',
+  REDEEMED: 'text-red-500',
+  EXPIRED: 'text-slate-400',
+  BONUS: 'text-blue-600',
+  REFERRAL: 'text-purple-600',
+  ADJUSTED: 'text-orange-500',
+}
+
 const UserAdminCard = ({ user }: UserAdminCardProps): ReactElement => {
   const queryClient = useQueryClient()
   const [assignCouponId, setAssignCouponId] = useState('')
   const [validateCode, setValidateCode] = useState('')
   const [validateSubtotal, setValidateSubtotal] = useState('500')
   const [validationResult, setValidationResult] = useState<string | null>(null)
+
+  // Loyalty state
+  const [showLoyalty, setShowLoyalty] = useState(false)
+  const [adjustPoints, setAdjustPoints] = useState('')
+  const [adjustReason, setAdjustReason] = useState('')
+  const [adjustNote, setAdjustNote] = useState('')
 
   const {
     data: detail,
@@ -96,6 +113,31 @@ const UserAdminCard = ({ user }: UserAdminCardProps): ReactElement => {
       }
     },
     onError: (err: Error) => setValidationResult(err.message ?? 'Validation failed'),
+  })
+
+  const { data: loyaltyData, refetch: refetchLoyalty } = useQuery({
+    queryKey: ['admin-loyalty', user.id],
+    queryFn: () => getUserLoyalty(user.id),
+    enabled: showLoyalty,
+  })
+
+  const adjustMutation = useMutation({
+    mutationFn: () =>
+      adjustUserLoyalty(user.id, {
+        points: Number(adjustPoints),
+        reason: adjustReason.trim(),
+        adminNote: adjustNote.trim() || undefined,
+      }),
+    onSuccess: (result) => {
+      toast.success(
+        `Points adjusted: ${result.previousBalance} → ${result.newBalance} (${result.adjustedBy > 0 ? '+' : ''}${result.adjustedBy})`,
+      )
+      setAdjustPoints('')
+      setAdjustReason('')
+      setAdjustNote('')
+      void refetchLoyalty()
+    },
+    onError: (err: Error) => toast.error(err.message ?? 'Adjust failed'),
   })
 
   const available = detail?.availableCoupons ?? []
@@ -295,6 +337,107 @@ const UserAdminCard = ({ user }: UserAdminCardProps): ReactElement => {
             </p>
           ) : null}
         </div>
+      </div>
+
+      {/* ── Loyalty Points Panel ── */}
+      <div className="border-t border-slate-100">
+        <button
+          type="button"
+          onClick={() => setShowLoyalty((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50"
+        >
+          <span>🏆 Loyalty Points{loyaltyData ? ` — ${loyaltyData.balance.toLocaleString()} pts` : ''}</span>
+          <span className="text-slate-400">{showLoyalty ? '▲' : '▼'}</span>
+        </button>
+
+        {showLoyalty && (
+          <div className="px-4 pb-4 space-y-4">
+            {/* Balance summary */}
+            {loyaltyData ? (
+              <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 text-center text-xs">
+                <div>
+                  <p className="text-lg font-bold text-slate-900">{loyaltyData.balance.toLocaleString()}</p>
+                  <p className="text-slate-500">Balance</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-green-700">{loyaltyData.totalEarned.toLocaleString()}</p>
+                  <p className="text-slate-500">Earned</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-red-600">{loyaltyData.totalRedeemed.toLocaleString()}</p>
+                  <p className="text-slate-500">Redeemed</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">Loading loyalty data…</p>
+            )}
+
+            {/* Adjust points */}
+            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+              <p className="text-xs font-semibold text-amber-900">Adjust points</p>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={adjustPoints}
+                  onChange={(e) => setAdjustPoints(e.target.value)}
+                  placeholder="e.g. 100 or -50"
+                  className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                />
+                <input
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  placeholder="Reason (min 5 chars)"
+                  className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                />
+              </div>
+              <input
+                value={adjustNote}
+                onChange={(e) => setAdjustNote(e.target.value)}
+                placeholder="Admin note (optional)"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                disabled={
+                  !adjustPoints ||
+                  Number(adjustPoints) === 0 ||
+                  adjustReason.trim().length < 5 ||
+                  adjustMutation.isPending
+                }
+                onClick={() => adjustMutation.mutate()}
+                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-500 disabled:opacity-50"
+              >
+                {adjustMutation.isPending ? 'Saving…' : 'Apply adjustment'}
+              </button>
+            </div>
+
+            {/* Transaction history */}
+            {loyaltyData && loyaltyData.transactions.length > 0 ? (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Recent transactions
+                </p>
+                <ul className="space-y-1 max-h-40 overflow-y-auto">
+                  {loyaltyData.transactions.slice(0, 10).map((tx) => (
+                    <li key={tx.id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-xs">
+                      <div>
+                        <p className="font-medium text-slate-800">{tx.description}</p>
+                        <p className="text-slate-400">
+                          {new Date(tx.createdAt).toLocaleDateString('en-IN', {
+                            day: 'numeric', month: 'short', year: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                      <span className={`font-bold ${TX_TYPE_COLOR[tx.type] ?? 'text-slate-700'}`}>
+                        {tx.points > 0 ? '+' : ''}{tx.points} pts
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
     </article>
   )

@@ -23,6 +23,7 @@ import {
   Zap,
   Bell,
   Package2,
+  Star,
 } from 'lucide-react'
 import AppShell from '../components/ui/AppShell'
 import { useAuth } from '../hooks/useAuth'
@@ -99,6 +100,7 @@ const AdminLayout = (): ReactElement => {
         { to: '/dashboard/coupons', label: 'Coupons', icon: <TicketPercent size={18} />, matchPrefix: '/dashboard/coupons' },
         { to: '/dashboard/flash-sales', label: 'Flash Sales', icon: <Zap size={18} />, matchPrefix: '/dashboard/flash-sales' },
         { to: '/dashboard/bundles', label: 'Bundles', icon: <Package2 size={18} />, matchPrefix: '/dashboard/bundles' },
+        { to: '/dashboard/loyalty', label: 'Loyalty', icon: <Star size={18} />, matchPrefix: '/dashboard/loyalty' },
       ],
     },
     {
@@ -124,7 +126,7 @@ const AdminLayout = (): ReactElement => {
           <ShoppingBag size={18} className="text-white" />
         </div>
         <div>
-          <p className="text-sm font-bold tracking-tight text-white">Desent Club</p>
+          <p className="text-sm font-bold tracking-tight text-white">Disent Clung</p>
           <p className="text-[10px] font-medium uppercase tracking-widest text-indigo-400">Admin Panel</p>
         </div>
       </div>
@@ -180,7 +182,7 @@ const AdminLayout = (): ReactElement => {
   return (
     <AppShell
       sidebar={sidebarNav}
-      mobileHeaderTitle="Desent Club"
+      mobileHeaderTitle="Disent Clung"
       mobileOpen={mobileOpen}
       onMobileOpen={() => setMobileOpen(true)}
       onMobileClose={() => setMobileOpen(false)}

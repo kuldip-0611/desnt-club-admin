@@ -27,6 +27,7 @@ import FlashSales from './pages/FlashSales'
 import Broadcasts from './pages/Broadcasts'
 import Analytics from './pages/Analytics'
 import Bundles from './pages/Bundles'
+import Loyalty from './pages/Loyalty'
 import NotFound from './pages/NotFound'
 import ProtectedRoute from './routes/ProtectedRoute'
 
@@ -73,6 +74,7 @@ const App = (): ReactElement => (
         <Route path="/dashboard/broadcasts" element={<Broadcasts />} />
         <Route path="/dashboard/analytics" element={<Analytics />} />
         <Route path="/dashboard/bundles" element={<Bundles />} />
+        <Route path="/dashboard/loyalty" element={<Loyalty />} />
       </Route>
     </Route>
     <Route path="*" element={<NotFound />} />
