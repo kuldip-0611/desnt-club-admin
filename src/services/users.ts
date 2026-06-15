@@ -79,3 +79,23 @@ export const adjustUserLoyalty = async (
   )
   return data
 }
+
+export interface LoyaltySettings {
+  pointsPerRupee: number
+  rupeePerPoint: number
+  minRedeemPoints: number
+  maxRedeemPercent: number
+  referralBonus: number
+  referredBonus: number
+  orderEarnMultiplier: number
+}
+
+export const getLoyaltySettings = async (): Promise<LoyaltySettings> => {
+  const { data } = await api.get<LoyaltySettings>('/admin/loyalty/settings')
+  return data
+}
+
+export const updateLoyaltySettings = async (payload: Partial<LoyaltySettings>): Promise<LoyaltySettings> => {
+  const { data } = await api.patch<LoyaltySettings>('/admin/loyalty/settings', payload)
+  return data
+}
