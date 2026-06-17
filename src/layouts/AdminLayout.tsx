@@ -101,6 +101,7 @@ const AdminLayout = (): ReactElement => {
         { to: '/dashboard/flash-sales', label: 'Flash Sales', icon: <Zap size={18} />, matchPrefix: '/dashboard/flash-sales' },
         { to: '/dashboard/bundles', label: 'Bundles', icon: <Package2 size={18} />, matchPrefix: '/dashboard/bundles' },
         { to: '/dashboard/loyalty', label: 'Loyalty', icon: <Star size={18} />, matchPrefix: '/dashboard/loyalty' },
+        { to: '/dashboard/reviews', label: 'Reviews', icon: <Star size={18} />, matchPrefix: '/dashboard/reviews' },
       ],
     },
     {
