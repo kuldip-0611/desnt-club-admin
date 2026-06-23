@@ -167,12 +167,12 @@ const Products = (): ReactElement => {
       render: (p) =>
         (p.discountPercent ?? 0) >= 1 && p.salePrice != null && p.salePrice < p.price ? (
           <span className="inline-flex flex-col gap-0.5">
-            <span className="text-xs font-normal text-slate-400 line-through">${p.price.toFixed(2)}</span>
-            <span className="font-medium text-emerald-700">${p.salePrice.toFixed(2)}</span>
+            <span className="text-xs font-normal text-slate-400 line-through">₹{p.price.toFixed(2)}</span>
+            <span className="font-medium text-emerald-700">₹{p.salePrice.toFixed(2)}</span>
             <span className="text-[10px] font-semibold uppercase text-rose-600">{p.discountPercent}% off</span>
           </span>
         ) : (
-          <span className="font-medium tabular-nums text-slate-800">${p.price.toFixed(2)}</span>
+          <span className="font-medium tabular-nums text-slate-800">₹{p.price.toFixed(2)}</span>
         ),
     },
     {

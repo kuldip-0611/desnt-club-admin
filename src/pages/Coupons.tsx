@@ -92,9 +92,9 @@ const Coupons = (): ReactElement => {
       header: 'Discount',
       render: (c) => (
         <span className="text-slate-700">
-          {c.discountType === 'PERCENT' ? `${formatMoney(c.value)}%` : `$${formatMoney(c.value)}`}
+          {c.discountType === 'PERCENT' ? `${formatMoney(c.value)}%` : `₹${formatMoney(c.value)}`}
           {c.discountType === 'PERCENT' && c.maxDiscount ? (
-            <span className="ml-1 text-xs text-slate-500">(max ${formatMoney(c.maxDiscount)})</span>
+            <span className="ml-1 text-xs text-slate-500">(max ₹{formatMoney(c.maxDiscount)})</span>
           ) : null}
         </span>
       ),

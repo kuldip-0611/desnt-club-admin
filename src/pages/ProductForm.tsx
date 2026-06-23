@@ -814,7 +814,7 @@ const ProductForm = (): ReactElement => {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label htmlFor="price" className="mb-1 block text-sm font-medium text-slate-700">
-                    Price (USD)
+                    Price (₹)
                   </label>
                   <input
                     id="price"
@@ -883,11 +883,10 @@ const ProductForm = (): ReactElement => {
                       <p>
                         <span className="text-slate-500">Preview: </span>
                         <span className="text-slate-400 line-through">
-                          ${Number(values.price).toFixed(2)}
+                          ₹{Number(values.price).toFixed(2)}
                         </span>
                         <span className="ml-2 font-semibold text-emerald-700">
-                          $
-                          {(
+                          ₹{(
                             Math.round(
                               Number(values.price) *
                                 (100 - Math.min(100, Math.floor(values.discountPercent))),

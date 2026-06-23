@@ -242,7 +242,7 @@ const CouponForm = (): ReactElement => {
             </FormField>
 
             <FormField
-              label={values.discountType === 'PERCENT' ? 'Percent (0–100)' : 'Amount ($)'}
+              label={values.discountType === 'PERCENT' ? 'Percent (0–100)' : 'Amount (₹)'}
               htmlFor="value"
               error={<ErrorMessage name="value" />}
             >
@@ -274,7 +274,7 @@ const CouponForm = (): ReactElement => {
             {values.discountType === 'PERCENT' ? (
               <div>
                 <label htmlFor="maxDiscount" className="block text-sm font-medium text-slate-700">
-                  Max discount cap ($, optional)
+                  Max discount cap (₹, optional)
                 </label>
                 <Field
                   id="maxDiscount"
