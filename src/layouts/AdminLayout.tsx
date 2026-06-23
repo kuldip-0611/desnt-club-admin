@@ -153,7 +153,7 @@ const AdminLayout = (): ReactElement => {
   const sidebarNav = (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-3 border-b border-white/10 px-5 py-5">
-        <img src="/favicon.svg" alt="Disent Club" className="h-9 w-9" />
+        <img src="/logo.png" alt="Disent Club" className="h-9 w-auto" />
         <div>
           <p className="text-sm font-bold tracking-tight text-white">Disent Club</p>
           <p className="text-[10px] font-medium uppercase tracking-widest text-indigo-400">Admin Panel</p>

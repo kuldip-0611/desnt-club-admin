@@ -52,7 +52,7 @@ const Login = (): ReactElement => {
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="mb-4">
-            <img src="/favicon.svg" alt="Disent Club" className="h-14 w-14" />
+            <img src="/logo.png" alt="Disent Club" className="h-14 w-auto" />
           </div>
           <h1 className="text-2xl font-bold text-white">Disent Club Admin</h1>
           <p className="mt-1.5 text-sm text-slate-400">Sign in to access the dashboard.</p>
