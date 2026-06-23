@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle, XCircle, Star } from 'lucide-react'
+import { CheckCircle, XCircle } from 'lucide-react'
 import api from '../services/api'
 
 type Review = {

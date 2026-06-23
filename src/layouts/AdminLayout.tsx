@@ -12,8 +12,6 @@ import {
   Users,
   UsersRound,
   LogOut,
-  ShoppingBag,
-  ChevronRight,
   Layers,
   ClipboardList,
   RotateCcw,
@@ -24,6 +22,8 @@ import {
   Bell,
   Package2,
   Star,
+  ChevronRight,
+  AlertTriangle,
 } from 'lucide-react'
 import AppShell from '../components/ui/AppShell'
 import { useAuth } from '../hooks/useAuth'
@@ -41,17 +41,47 @@ type NavSection = {
   items: NavItem[]
 }
 
+const LogoutModal = ({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }): ReactElement => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0d1117] p-6 shadow-2xl">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+        <AlertTriangle size={22} className="text-red-400" />
+      </div>
+      <h2 className="mb-1 text-base font-semibold text-white">Log out?</h2>
+      <p className="mb-6 text-sm text-slate-400">You will be redirected to the login page.</p>
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/5"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-500"
+        >
+          Log out
+        </button>
+      </div>
+    </div>
+  </div>
+)
+
 const AdminLayout = (): ReactElement => {
   const navigate = useNavigate()
   const location = useLocation()
   const { removeToken } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   useEffect(() => {
     queueMicrotask(() => setMobileOpen(false))
   }, [location.pathname])
 
-  const handleLogout = () => {
+  const handleLogoutConfirm = () => {
+    setShowLogoutModal(false)
     removeToken()
     toast.success('Logged out successfully.')
     navigate('/login', { replace: true })
@@ -123,11 +153,9 @@ const AdminLayout = (): ReactElement => {
   const sidebarNav = (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-3 border-b border-white/10 px-5 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 shadow-lg shadow-indigo-900/50">
-          <ShoppingBag size={18} className="text-white" />
-        </div>
+        <img src="/favicon.svg" alt="Disent Club" className="h-9 w-9" />
         <div>
-          <p className="text-sm font-bold tracking-tight text-white">Disent Clung</p>
+          <p className="text-sm font-bold tracking-tight text-white">Disent Club</p>
           <p className="text-[10px] font-medium uppercase tracking-widest text-indigo-400">Admin Panel</p>
         </div>
       </div>
@@ -170,7 +198,7 @@ const AdminLayout = (): ReactElement => {
       <div className="border-t border-white/10 p-3">
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={() => setShowLogoutModal(true)}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-red-500/10 hover:text-red-400"
         >
           <LogOut size={16} />
@@ -181,15 +209,23 @@ const AdminLayout = (): ReactElement => {
   )
 
   return (
-    <AppShell
-      sidebar={sidebarNav}
-      mobileHeaderTitle="Disent Clung"
-      mobileOpen={mobileOpen}
-      onMobileOpen={() => setMobileOpen(true)}
-      onMobileClose={() => setMobileOpen(false)}
-    >
-      <Outlet />
-    </AppShell>
+    <>
+      {showLogoutModal && (
+        <LogoutModal
+          onConfirm={handleLogoutConfirm}
+          onCancel={() => setShowLogoutModal(false)}
+        />
+      )}
+      <AppShell
+        sidebar={sidebarNav}
+        mobileHeaderTitle="Disent Club"
+        mobileOpen={mobileOpen}
+        onMobileOpen={() => setMobileOpen(true)}
+        onMobileClose={() => setMobileOpen(false)}
+      >
+        <Outlet />
+      </AppShell>
+    </>
   )
 }
 
