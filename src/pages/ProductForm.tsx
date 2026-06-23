@@ -690,7 +690,7 @@ const ProductForm = (): ReactElement => {
         validationSchema={productSchema}
         onSubmit={handleSubmit}
       >
-        {({ values, handleChange, handleBlur, isSubmitting, dirty, isValid, setFieldValue }) => {
+        {({ values, handleChange, handleBlur, isSubmitting, dirty, isValid, setFieldValue, errors }) => {
           const saving =
             isSubmitting ||
             createMutation.isPending ||
@@ -1000,9 +1000,9 @@ const ProductForm = (): ReactElement => {
                       </div>
                     )}
                   </FieldArray>
-                  <p className="mt-1 text-xs text-red-600">
-                    <ErrorMessage name="fabrics" />
-                  </p>
+                  {typeof errors.fabrics === 'string' && (
+                    <p className="mt-1 text-xs text-red-600">{errors.fabrics}</p>
+                  )}
                 </div>
               </div>
 
@@ -1277,9 +1277,9 @@ const ProductForm = (): ReactElement => {
                       >
                         + Add size row
                       </button>
-                      <p className="text-xs text-red-600">
-                        <ErrorMessage name="variants" />
-                      </p>
+                      {typeof errors.variants === 'string' && (
+                        <p className="text-xs text-red-600">{errors.variants}</p>
+                      )}
                     </div>
                   )}
                 </FieldArray>
