@@ -88,6 +88,15 @@ body {
   background-color: transparent;
 }
 
+/* Hide scrollbars globally */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+*::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera */
+}
+
 /* Prevent light-mode hover utilities from flashing on dark tables */
 .admin-theme .hover\:bg-slate-50:hover,
 .admin-theme .hover\:bg-slate-50\/80:hover,
