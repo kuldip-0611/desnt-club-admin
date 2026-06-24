@@ -11,6 +11,7 @@ interface StoreConfig {
   supportPhone: string
   currency: string
   freeShippingThreshold: string
+  shippingFee: string
 }
 
 const DEFAULT_CONFIG: StoreConfig = {
@@ -19,7 +20,8 @@ const DEFAULT_CONFIG: StoreConfig = {
   supportEmail: '',
   supportPhone: '',
   currency: 'INR',
-  freeShippingThreshold: '0',
+  freeShippingThreshold: '999',
+  shippingFee: '99',
 }
 
 const GST_RATES = [
@@ -162,7 +164,7 @@ export default function StoreSettings(): ReactElement {
           <Truck size={16} className="text-indigo-400" />
           <h2 className="font-semibold text-slate-900 dark:text-white">Shipping & Currency</h2>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-4">
           <div>
             <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
               <DollarSign size={13} /> Currency
@@ -176,19 +178,43 @@ export default function StoreSettings(): ReactElement {
               <option value="USD">USD — US Dollar ($)</option>
             </select>
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-              Free Shipping Threshold (₹)
-            </label>
-            <input
-              type="number"
-              min={0}
-              value={config.freeShippingThreshold}
-              onChange={set('freeShippingThreshold')}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              placeholder="0"
-            />
-            <p className="mt-1.5 text-xs text-slate-500">Set to 0 to disable free shipping</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Shipping Fee (₹)
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={config.shippingFee}
+                onChange={set('shippingFee')}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder="99"
+              />
+              <p className="mt-1.5 text-xs text-slate-500">Charged when order is below the free shipping threshold</p>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Free Shipping Above (₹)
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={config.freeShippingThreshold}
+                onChange={set('freeShippingThreshold')}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder="999"
+              />
+              <p className="mt-1.5 text-xs text-slate-500">Orders above this amount get free shipping. Set to 0 to always charge.</p>
+            </div>
+          </div>
+          {/* Preview */}
+          <div className="rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+            <span className="font-medium">Preview: </span>
+            {parseFloat(config.freeShippingThreshold) > 0
+              ? <>Orders under ₹{config.freeShippingThreshold} → <strong className="text-slate-800 dark:text-slate-200">₹{config.shippingFee} shipping</strong> · Orders ₹{config.freeShippingThreshold}+ → <strong className="text-emerald-600 dark:text-emerald-400">Free shipping</strong></>
+              : <>All orders charge <strong className="text-slate-800 dark:text-slate-200">₹{config.shippingFee} shipping</strong></>
+            }
           </div>
         </div>
       </section>

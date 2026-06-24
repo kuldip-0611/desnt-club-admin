@@ -12,6 +12,7 @@ import type { MeasurementAttribute } from '../types/sizing'
 const baseSchema = Yup.object({
   code: Yup.string().trim().required('Code is required').max(32),
   name: Yup.string().trim().max(120),
+  sortOrder: Yup.number().integer('Must be a whole number').min(0, 'Must be ≥ 0').required('Sort order is required'),
   valueUnit: Yup.string().oneOf(['', 'cm', 'in']),
   isActive: Yup.boolean().required(),
 })
@@ -19,6 +20,7 @@ const baseSchema = Yup.object({
 type FormValues = {
   code: string
   name: string
+  sortOrder: number
   valueUnit: '' | 'cm' | 'in'
   isActive: boolean
 }
@@ -91,10 +93,11 @@ const SizeForm = (): ReactElement => {
   }
 
   const initialValues: FormValues = isCreate
-    ? { code: '', name: '', valueUnit: '', isActive: true }
+    ? { code: '', name: '', sortOrder: 0, valueUnit: '', isActive: true }
     : {
         code: existing?.code ?? '',
         name: existing?.name ?? '',
+        sortOrder: existing?.sortOrder ?? 0,
         valueUnit:
           existing?.valueUnit === 'cm' || existing?.valueUnit === 'in' ? existing.valueUnit : '',
         isActive: existing?.isActive ?? true,
@@ -130,6 +133,7 @@ const SizeForm = (): ReactElement => {
           const payload = {
             code: values.code.trim(),
             name: values.name.trim() || undefined,
+            sortOrder: values.sortOrder,
             valueUnit: values.valueUnit === '' ? null : values.valueUnit,
             isActive: values.isActive,
             measurements,
@@ -148,6 +152,9 @@ const SizeForm = (): ReactElement => {
               </FormField>
               <FormField label="Display name (optional)">
                 <Field name="name" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              </FormField>
+              <FormField label="Sort order" hint="Lower numbers appear first in size pickers (e.g. XS=0, S=1, M=2, L=3, XL=4)." error={<ErrorMessage name="sortOrder" />}>
+                <Field name="sortOrder" type="number" min={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
               </FormField>
               <FormField
                 label="Chart unit (optional)"

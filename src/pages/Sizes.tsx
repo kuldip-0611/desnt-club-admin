@@ -47,6 +47,11 @@ const Sizes = (): ReactElement => {
 
   const columns: DataTableColumn<Size>[] = [
     {
+      key: 'sortOrder',
+      header: 'Order',
+      render: (s) => <span className="font-mono text-slate-500">{s.sortOrder ?? 0}</span>,
+    },
+    {
       key: 'code',
       header: 'Code',
       render: (s) => <span className="font-mono font-semibold text-slate-900">{s.code}</span>,
