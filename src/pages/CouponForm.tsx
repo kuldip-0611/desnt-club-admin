@@ -340,30 +340,56 @@ const CouponForm = (): ReactElement => {
             </div>
 
             <div>
-              <label htmlFor="categoryIds" className="block text-sm font-medium text-slate-700">
-                Apply to categories (optional)
-              </label>
-              <select
-                id="categoryIds"
-                name="categoryIds"
-                multiple
-                value={values.categoryIds}
-                onChange={(e) => {
-                  const ids = Array.from(e.target.selectedOptions).map((o) => o.value)
-                  setFieldValue('categoryIds', ids)
-                }}
-                className="mt-1 min-h-36 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                    {!c.isActive ? ' (inactive)' : ''}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-slate-500">
-                Leave empty to allow all categories.
+              <p className="block text-sm font-medium text-slate-700">
+                Apply to categories
+                <span className="ml-1 font-normal text-slate-400">(optional)</span>
               </p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Select which categories this coupon applies to. Leave all unchecked to allow every category.
+              </p>
+              {categories.length === 0 ? (
+                <p className="mt-2 text-xs text-slate-400 italic">No categories found.</p>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {categories.map((c) => {
+                    const selected = values.categoryIds.includes(c.id)
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          const next = selected
+                            ? values.categoryIds.filter((id) => id !== c.id)
+                            : [...values.categoryIds, c.id]
+                          setFieldValue('categoryIds', next)
+                        }}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                          selected
+                            ? 'border-indigo-500 bg-indigo-600 text-white'
+                            : 'border-slate-300 bg-white text-slate-700 hover:border-indigo-400 hover:text-indigo-600'
+                        }`}
+                      >
+                        {selected && (
+                          <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
+                          </svg>
+                        )}
+                        {c.name}
+                        {!c.isActive ? <span className="opacity-60">(inactive)</span> : null}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {values.categoryIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFieldValue('categoryIds', [])}
+                  className="mt-2 text-xs text-slate-400 hover:text-slate-600 underline"
+                >
+                  Clear selection (apply to all categories)
+                </button>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-3 pt-2">

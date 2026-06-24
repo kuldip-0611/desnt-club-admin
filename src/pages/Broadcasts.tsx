@@ -2,7 +2,7 @@ import type { ReactElement, FormEvent } from 'react'
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
-import { Bell, Send, Smartphone } from 'lucide-react'
+import { AlertTriangle, Bell, Send, Smartphone, X } from 'lucide-react'
 import { sendBroadcast } from '../services/notifications'
 
 type NotifType = 'announcement' | 'offer' | 'general'
@@ -13,11 +13,105 @@ const TYPE_LABELS: Record<NotifType, { label: string; color: string }> = {
   general: { label: 'General', color: 'text-slate-400' },
 }
 
+// ── Confirm modal ─────────────────────────────────────────────────────────────
+
+const ConfirmBroadcastModal = ({
+  title,
+  body,
+  type,
+  onConfirm,
+  onClose,
+  isPending,
+}: {
+  title: string
+  body: string
+  type: NotifType
+  onConfirm: () => void
+  onClose: () => void
+  isPending: boolean
+}): ReactElement => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={!isPending ? onClose : undefined} />
+    <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
+      {!isPending && (
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-full p-1.5 text-slate-500 hover:bg-white/10 hover:text-slate-300"
+        >
+          <X size={16} />
+        </button>
+      )}
+
+      <div className="mb-5 flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/15">
+          <AlertTriangle size={20} className="text-amber-400" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-white">Send broadcast?</h3>
+          <p className="text-xs text-slate-400">
+            This will push a notification to <span className="font-semibold text-white">all users</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="mb-5 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 w-14 shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-500">Title</span>
+          <span className="break-words text-sm font-semibold text-slate-100">{title}</span>
+        </div>
+        <div className="h-px bg-white/5" />
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 w-14 shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-500">Message</span>
+          <span className="break-words text-sm text-slate-300">{body}</span>
+        </div>
+        <div className="h-px bg-white/5" />
+        <div className="flex items-center gap-3">
+          <span className="w-14 shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-500">Type</span>
+          <span className={`text-sm font-semibold ${TYPE_LABELS[type].color}`}>{TYPE_LABELS[type].label}</span>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={isPending}
+          className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/5 disabled:opacity-40"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={isPending}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
+        >
+          {isPending ? (
+            <>
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              Sending…
+            </>
+          ) : (
+            <>
+              <Send size={14} />
+              Send to all users
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  </div>
+)
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 const Broadcasts = (): ReactElement => {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [type, setType] = useState<NotifType>('general')
   const [lastResult, setLastResult] = useState<{ sent: number } | null>(null)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   const sendMutation = useMutation({
     mutationFn: () => sendBroadcast({ title, body, type }),
@@ -27,19 +121,33 @@ const Broadcasts = (): ReactElement => {
       setTitle('')
       setBody('')
       setType('general')
+      setShowConfirm(false)
     },
-    onError: () => toast.error('Failed to send broadcast. Make sure the backend endpoint POST /admin/notifications/broadcast exists.'),
+    onError: () => {
+      toast.error('Failed to send broadcast.')
+      setShowConfirm(false)
+    },
   })
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (!title.trim() || !body.trim()) return
-    const confirmed = window.confirm(`Send this notification to ALL users?\n\nTitle: ${title}\nMessage: ${body}`)
-    if (confirmed) sendMutation.mutate()
+    setShowConfirm(true)
   }
 
   return (
     <div className="space-y-6">
+      {showConfirm && (
+        <ConfirmBroadcastModal
+          title={title}
+          body={body}
+          type={type}
+          isPending={sendMutation.isPending}
+          onConfirm={() => sendMutation.mutate()}
+          onClose={() => setShowConfirm(false)}
+        />
+      )}
+
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Broadcasts</h1>
         <p className="mt-1 text-sm text-slate-400">Send push notifications to all users.</p>
@@ -97,7 +205,7 @@ const Broadcasts = (): ReactElement => {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
             >
               <Send size={15} />
-              {sendMutation.isPending ? 'Sending…' : 'Send to All Users'}
+              Send to All Users
             </button>
           </form>
 
@@ -114,14 +222,12 @@ const Broadcasts = (): ReactElement => {
             <Smartphone size={15} className="text-slate-400" /> Mobile Preview
           </h2>
           <div className="mx-auto max-w-[280px]">
-            {/* Phone frame */}
             <div className="rounded-3xl border-4 border-slate-700 bg-slate-800 p-4 shadow-2xl">
               <div className="mb-3 flex items-center gap-1.5">
                 <div className="h-1.5 w-1.5 rounded-full bg-slate-600" />
                 <div className="h-1 flex-1 rounded-full bg-slate-700" />
                 <div className="h-1.5 w-6 rounded-full bg-slate-600" />
               </div>
-              {/* Notification card */}
               <div className="rounded-2xl bg-white/90 p-3 shadow-sm">
                 <div className="flex items-start gap-2">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600">

@@ -54,9 +54,17 @@ const LoginForm = ({
           </div>
 
           <div>
-            <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-300">
-              Password
-            </label>
+            <div className="mb-2 flex items-center justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-300">
+                Password
+              </label>
+              <a
+                href="mailto:support@disentclub.com?subject=Admin%20password%20reset%20request"
+                className="text-xs text-indigo-400 hover:text-indigo-300 hover:underline"
+              >
+                Forgot password?
+              </a>
+            </div>
             <div className="relative">
               <input
                 id="password"
@@ -105,7 +113,9 @@ const LoginForm = ({
           </div>
 
           {errorMessage && (
-            <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{errorMessage}</div>
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300">
+              {errorMessage}
+            </div>
           )}
 
           <button

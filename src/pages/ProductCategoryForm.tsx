@@ -234,7 +234,7 @@ const ProductCategoryForm = (): ReactElement => {
                 isSubmitting ||
                 isSaving ||
                 !isValid ||
-                (!isCreate && !dirty) ||
+                (!isCreate && !dirty && !imageFile) ||
                 createMutation.isPending ||
                 updateMutation.isPending
               }

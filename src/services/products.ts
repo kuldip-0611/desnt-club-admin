@@ -82,6 +82,20 @@ export const updateProductStock = async (id: string, quantity: number): Promise<
   await api.patch(`/admin/products/${id}`, { quantity })
 }
 
+export const updateProductVariants = async (
+  id: string,
+  variants: { id?: string; size: string; color: string; quantity: number; sizeId?: string | null }[],
+): Promise<void> => {
+  await api.patch(`/admin/products/${id}`, {
+    variants: variants.map((v) => ({
+      sizeId: v.sizeId ?? undefined,
+      size: v.size,
+      color: v.color,
+      quantity: v.quantity,
+    })),
+  })
+}
+
 export const importProductsCsv = async (rows: { name: string; price: number; quantity: number }[]): Promise<{ imported: number }> => {
   const { data } = await api.post<{ imported: number }>('/admin/products/import', { rows })
   return data

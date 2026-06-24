@@ -31,19 +31,26 @@ export type CreateBundlePayload = {
 
 export type UpdateBundlePayload = Partial<CreateBundlePayload>
 
+type ApiBundle = Omit<Bundle, 'productIds'> & { products?: { productId: string }[] }
+
+const normalise = (b: ApiBundle): Bundle => ({
+  ...b,
+  productIds: (b.products ?? []).map((p) => p.productId),
+})
+
 export const listBundles = async (): Promise<Bundle[]> => {
-  const { data } = await api.get<Bundle[]>('/admin/bundles')
-  return data
+  const { data } = await api.get<ApiBundle[]>('/admin/bundles')
+  return (data ?? []).map(normalise)
 }
 
 export const createBundle = async (payload: CreateBundlePayload): Promise<Bundle> => {
-  const { data } = await api.post<Bundle>('/admin/bundles', payload)
-  return data
+  const { data } = await api.post<ApiBundle>('/admin/bundles', payload)
+  return normalise(data)
 }
 
 export const updateBundle = async (id: string, payload: UpdateBundlePayload): Promise<Bundle> => {
-  const { data } = await api.patch<Bundle>(`/admin/bundles/${id}`, payload)
-  return data
+  const { data } = await api.patch<ApiBundle>(`/admin/bundles/${id}`, payload)
+  return normalise(data)
 }
 
 export const deleteBundle = async (id: string): Promise<void> => {

@@ -3,9 +3,9 @@ import { useState, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import { AlertTriangle, Package, ChevronDown, ChevronRight, Search, X } from 'lucide-react'
-import { listProducts, updateProductStock } from '../services/products'
+import { listProducts, updateProductStock, updateProductVariants } from '../services/products'
 import { useDebounce } from '../hooks/useDebounce'
-import type { Product } from '../types/product'
+import type { Product, ProductVariant } from '../types/product'
 
 const LOW_STOCK = 5
 const PAGE_SIZE = 20
@@ -28,18 +28,69 @@ const useDebounceRef = () => {
   }, [])
 }
 
+const VariantQtyInput = ({
+  variant,
+  productId,
+  allVariants,
+  onSaved,
+}: {
+  variant: ProductVariant
+  productId: string
+  allVariants: ProductVariant[]
+  onSaved: () => void
+}) => {
+  const [val, setVal] = useState(String(variant.quantity))
+  const debounce = useDebounceRef()
+
+  const save = (n: number) => {
+    const updated = allVariants.map((v) =>
+      v.id === variant.id ? { ...v, quantity: n } : v
+    )
+    debounce(`${productId}-${variant.id}`, () =>
+      updateProductVariants(productId, updated).then(onSaved).catch(() => toast.error('Failed to update variant stock'))
+    )
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1 rounded-lg border border-white/10 px-3 py-2 text-xs">
+      <div className="flex items-center gap-1 text-slate-300">
+        <span className="font-semibold">{variant.size}</span>
+        {variant.color && <span className="text-slate-500">· {variant.color}</span>}
+      </div>
+      <input
+        type="number"
+        min={0}
+        value={val}
+        onChange={(e) => {
+          setVal(e.target.value)
+          const n = parseInt(e.target.value, 10)
+          if (!isNaN(n) && n >= 0) save(n)
+        }}
+        className={`w-16 rounded border px-1.5 py-0.5 text-center text-xs font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+          variant.quantity === 0 ? 'border-red-500/40 bg-red-500/10 text-red-300'
+          : variant.quantity <= LOW_STOCK ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+          : 'border-white/10 bg-slate-900 text-slate-200'
+        }`}
+      />
+    </div>
+  )
+}
+
 const StockRow = ({
   product,
   onUpdate,
   isPending,
+  onRefresh,
 }: {
   product: Product
   onUpdate: (id: string, qty: number) => void
   isPending: boolean
+  onRefresh: () => void
 }): ReactElement => {
   const [qty, setQty] = useState(String(product.quantity))
   const [expanded, setExpanded] = useState(false)
   const debounce = useDebounceRef()
+  const hasVariants = (product.variants?.length ?? 0) > 0
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
@@ -59,35 +110,39 @@ const StockRow = ({
             onClick={() => setExpanded((v) => !v)}
             className="flex items-center gap-2 text-left"
           >
-            {product.variants?.length ? (
+            {hasVariants ? (
               expanded
                 ? <ChevronDown size={14} className="text-slate-500 shrink-0" />
                 : <ChevronRight size={14} className="text-slate-500 shrink-0" />
             ) : <span className="w-[14px] shrink-0" />}
             <div>
               <p className="text-sm font-medium text-slate-200 leading-tight">{product.name}</p>
-              {product.variants?.length ? (
-                <p className="text-[10px] text-slate-500 mt-0.5">{product.variants.length} variant{product.variants.length !== 1 ? 's' : ''}</p>
+              {hasVariants ? (
+                <p className="text-[10px] text-slate-500 mt-0.5">{product.variants!.length} variant{product.variants!.length !== 1 ? 's' : ''} — click to edit</p>
               ) : null}
             </div>
           </button>
         </td>
         <td className="px-4 py-3 text-xs text-slate-400">{product.category?.name ?? '—'}</td>
         <td className="px-4 py-3">
-          <input
-            type="number"
-            min={0}
-            value={qty}
-            onChange={handleChange}
-            disabled={isPending}
-            className={`w-20 rounded-lg border px-2 py-1 text-center text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 ${
-              product.quantity === 0
-                ? 'border-red-500/40 bg-red-500/10 text-red-300'
-                : product.quantity <= LOW_STOCK
-                ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                : 'border-white/10 bg-slate-900 text-slate-200'
-            }`}
-          />
+          {hasVariants ? (
+            <span className="text-sm font-semibold text-slate-400">{product.quantity}</span>
+          ) : (
+            <input
+              type="number"
+              min={0}
+              value={qty}
+              onChange={handleChange}
+              disabled={isPending}
+              className={`w-20 rounded-lg border px-2 py-1 text-center text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 ${
+                product.quantity === 0
+                  ? 'border-red-500/40 bg-red-500/10 text-red-300'
+                  : product.quantity <= LOW_STOCK
+                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                  : 'border-white/10 bg-slate-900 text-slate-200'
+              }`}
+            />
+          )}
         </td>
         <td className="px-4 py-3">
           {product.quantity === 0 ? (
@@ -99,34 +154,44 @@ const StockRow = ({
           )}
         </td>
         <td className="px-4 py-3">
-          <button
-            type="button"
-            onClick={() => {
-              const val = window.prompt(`Set stock for "${product.name}":`, String(product.quantity))
-              const n = parseInt(val ?? '', 10)
-              if (!isNaN(n) && n >= 0) onUpdate(product.id, n)
-            }}
-            className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/20 transition-colors"
-          >
-            + Set
-          </button>
+          {hasVariants ? (
+            <button
+              type="button"
+              onClick={() => { onUpdate(product.id, 0); setQty('0') }}
+              className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/20 transition-colors"
+            >
+              Zero all
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                const val = window.prompt(`Set stock for "${product.name}":`, String(product.quantity))
+                const n = parseInt(val ?? '', 10)
+                if (!isNaN(n) && n >= 0) { onUpdate(product.id, n); setQty(String(n)) }
+              }}
+              className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/20 transition-colors"
+            >
+              + Set
+            </button>
+          )}
         </td>
       </tr>
-      {expanded && product.variants?.length ? (
+      {expanded && hasVariants ? (
         <tr className="border-b border-white/5 bg-slate-800/30">
           <td colSpan={5} className="px-8 py-3">
-            <div className="flex flex-wrap gap-3">
-              {product.variants
+            <div className="flex flex-wrap gap-2">
+              {product.variants!
                 .slice()
                 .sort((a, b) => a.size.localeCompare(b.size, undefined, { sensitivity: 'base' }))
                 .map((v) => (
-                  <div key={v.id} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs">
-                    <span className="font-semibold text-slate-200">{v.size}</span>
-                    {v.color && <span className="ml-1 text-slate-500">({v.color})</span>}
-                    <span className={`ml-2 font-bold ${v.quantity === 0 ? 'text-red-400' : v.quantity <= LOW_STOCK ? 'text-amber-400' : 'text-slate-300'}`}>
-                      qty: {v.quantity}
-                    </span>
-                  </div>
+                  <VariantQtyInput
+                    key={v.id}
+                    variant={v}
+                    productId={product.id}
+                    allVariants={product.variants!}
+                    onSaved={onRefresh}
+                  />
                 ))}
             </div>
           </td>
@@ -395,6 +460,7 @@ const Inventory = (): ReactElement => {
                     product={p}
                     onUpdate={handleUpdate}
                     isPending={updateMutation.isPending}
+                    onRefresh={() => void queryClient.invalidateQueries({ queryKey: ['admin-inventory'] })}
                   />
                 ))}
               </tbody>

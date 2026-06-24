@@ -22,6 +22,7 @@ import {
   Bell,
   Package2,
   Star,
+  Gift,
   ChevronRight,
   AlertTriangle,
 } from 'lucide-react'
@@ -132,6 +133,7 @@ const AdminLayout = (): ReactElement => {
         { to: '/dashboard/bundles', label: 'Bundles', icon: <Package2 size={18} />, matchPrefix: '/dashboard/bundles' },
         { to: '/dashboard/loyalty', label: 'Loyalty', icon: <Star size={18} />, matchPrefix: '/dashboard/loyalty' },
         { to: '/dashboard/reviews', label: 'Reviews', icon: <Star size={18} />, matchPrefix: '/dashboard/reviews' },
+        { to: '/dashboard/gift-cards', label: 'Gift Cards', icon: <Gift size={18} />, matchPrefix: '/dashboard/gift-cards' },
       ],
     },
     {
