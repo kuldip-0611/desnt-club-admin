@@ -78,6 +78,8 @@ export type Product = {
   price: number
   /** 1–100 when a discount is active; null if none */
   discountPercent: number | null
+  /** GST rate as decimal e.g. 0.05 = 5%, 0.12 = 12%, 0.18 = 18% */
+  gstRate: number
   /** Price after discount (same as `price` when no discount) */
   salePrice: number
   quantity: number

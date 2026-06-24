@@ -30,6 +30,7 @@ import Bundles from './pages/Bundles'
 import Loyalty from './pages/Loyalty'
 import Reviews from './pages/Reviews'
 import GiftCards from './pages/GiftCards'
+import StoreSettings from './pages/StoreSettings'
 import NotFound from './pages/NotFound'
 import ProtectedRoute from './routes/ProtectedRoute'
 
@@ -73,6 +74,7 @@ const App = (): ReactElement => (
         <Route path="/dashboard/inventory" element={<Inventory />} />
         <Route path="/dashboard/banners" element={<Banners />} />
         <Route path="/dashboard/flash-sales" element={<FlashSales />} />
+        <Route path="/dashboard/settings" element={<StoreSettings />} />
         <Route path="/dashboard/broadcasts" element={<Broadcasts />} />
         <Route path="/dashboard/analytics" element={<Analytics />} />
         <Route path="/dashboard/bundles" element={<Bundles />} />

@@ -4,8 +4,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import type { AxiosError } from 'axios'
-import { ArrowLeft, Package, User, CreditCard, RotateCcw } from 'lucide-react'
-import { getReturn, updateReturnStatus, type ReturnRequest, type ReturnStatus } from '../services/returns'
+import { ArrowLeft, Package, User, CreditCard, RotateCcw, Smartphone } from 'lucide-react'
+import { getReturn, updateReturnStatus, markUpiRefundPaid, type ReturnRequest, type ReturnStatus } from '../services/returns'
 
 const statusClasses: Record<ReturnStatus, string> = {
   REQUESTED: 'bg-amber-500/10 text-amber-400 ring-amber-500/20',
@@ -32,6 +32,9 @@ const ReturnDetail = (): ReactElement => {
   const queryClient = useQueryClient()
   const [adminNote, setAdminNote] = useState('')
   const [noteChanged, setNoteChanged] = useState(false)
+  const [showUpiModal, setShowUpiModal] = useState(false)
+  const [upiTxnRef, setUpiTxnRef] = useState('')
+  const [upiNote, setUpiNote] = useState('')
 
   const { data: ret, isLoading, isError } = useQuery({
     queryKey: ['admin-return', id],
@@ -68,6 +71,17 @@ const ReturnDetail = (): ReactElement => {
       void queryClient.invalidateQueries({ queryKey: ['admin-return', id] })
     },
     onError: () => toast.error('Failed to save note'),
+  })
+
+  const upiPaidMutation = useMutation({
+    mutationFn: () => markUpiRefundPaid(id!, { transactionRef: upiTxnRef.trim() || undefined, note: upiNote.trim() || undefined }),
+    onSuccess: (res) => {
+      toast.success(res.message)
+      setShowUpiModal(false)
+      void queryClient.invalidateQueries({ queryKey: ['admin-return', id] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-returns'] })
+    },
+    onError: () => toast.error('Failed to mark refund paid'),
   })
 
   const handleStatusAction = (status: ReturnStatus) => {
@@ -120,9 +134,52 @@ const ReturnDetail = (): ReactElement => {
   const nextActions = nextActionsFor(ret)
   const isExchange = ret.type === 'EXCHANGE'
   const payment = ret.order.payment
+  const isUpiReturn = ret.refundMethod === 'UPI'
 
   return (
     <div className="space-y-6">
+      {/* UPI Refund Modal */}
+      {showUpiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setShowUpiModal(false)} />
+          <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#0d1117] p-6 shadow-2xl">
+            <h3 className="mb-1 font-semibold text-white">Mark UPI Refund Paid</h3>
+            <p className="mb-4 text-xs text-slate-400">
+              Confirm that you have transferred the refund to <span className="font-semibold text-indigo-300">{ret.upiId}</span>
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-400">UTR / Transaction Ref # <span className="text-slate-600">(optional but recommended)</span></label>
+                <input
+                  value={upiTxnRef}
+                  onChange={(e) => setUpiTxnRef(e.target.value)}
+                  placeholder="e.g. 411234567890"
+                  className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-400">Note <span className="text-slate-600">(optional)</span></label>
+                <input
+                  value={upiNote}
+                  onChange={(e) => setUpiNote(e.target.value)}
+                  placeholder="e.g. Transferred via PhonePe"
+                  className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button onClick={() => setShowUpiModal(false)} className="flex-1 rounded-xl border border-white/10 py-2 text-sm text-slate-400 hover:bg-white/5">Cancel</button>
+              <button
+                onClick={() => upiPaidMutation.mutate()}
+                disabled={upiPaidMutation.isPending}
+                className="flex-1 rounded-xl bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+              >
+                {upiPaidMutation.isPending ? 'Marking…' : '✓ Confirm Paid'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Back */}
       <button
         type="button"
@@ -207,9 +264,68 @@ const ReturnDetail = (): ReactElement => {
                 )}
               </>
             )}
+            <div className="flex justify-between">
+              <dt className="text-slate-500">Refund Method</dt>
+              <dd className="text-slate-300">
+                {ret.refundMethod === 'UPI' ? '📲 UPI Transfer' : ret.refundMethod === 'STORE_CREDIT' ? '⚡ Store Credit' : '🏦 Bank (Razorpay)'}
+              </dd>
+            </div>
           </dl>
         </div>
       </div>
+
+      {/* UPI Refund Section — shown for COD/UPI returns */}
+      {isUpiReturn && (
+        <div className={`rounded-2xl border p-5 ${ret.refundPaidAt ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-white">
+            <Smartphone size={15} className="text-indigo-400" /> UPI Refund Details
+          </h2>
+          <dl className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-slate-400">Customer UPI ID</dt>
+              <dd className="font-mono font-semibold text-indigo-300">{ret.upiId ?? '—'}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-slate-400">Refund Amount</dt>
+              <dd className="font-bold text-white">₹{parseFloat(ret.order.total).toFixed(2)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-slate-400">Status</dt>
+              <dd>
+                {ret.refundPaidAt ? (
+                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-400">Paid ✓</span>
+                ) : (
+                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-400">Pending</span>
+                )}
+              </dd>
+            </div>
+            {ret.refundPaidAt && (
+              <div className="flex justify-between">
+                <dt className="text-slate-400">Paid At</dt>
+                <dd className="text-slate-300">{new Date(ret.refundPaidAt).toLocaleString('en-IN')}</dd>
+              </div>
+            )}
+            {ret.refundTransactionRef && (
+              <div className="flex justify-between">
+                <dt className="text-slate-400">UTR / Ref #</dt>
+                <dd className="font-mono text-emerald-400">{ret.refundTransactionRef}</dd>
+              </div>
+            )}
+          </dl>
+          {!ret.refundPaidAt && ret.status === 'REFUNDED' && (
+            <button
+              type="button"
+              onClick={() => setShowUpiModal(true)}
+              className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+            >
+              <Smartphone size={14} /> Mark UPI Refund as Paid
+            </button>
+          )}
+          {!ret.refundPaidAt && ret.status !== 'REFUNDED' && (
+            <p className="mt-3 text-xs text-amber-400/80">⚠ Approve the return and mark it as RECEIVED first, then move to REFUNDED to transfer UPI payment.</p>
+          )}
+        </div>
+      )}
 
       {/* Items */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -301,6 +417,7 @@ const ReturnDetail = (): ReactElement => {
                 status === 'APPROVED' ? `Approve + create pickup` :
                 status === 'RECEIVED' ? 'Mark Received' :
                 status === 'EXCHANGED' ? `Dispatch size ${ret.exchangeSize} →` :
+                status === 'REFUNDED' && isUpiReturn ? 'Approve for UPI Refund →' :
                 status === 'REFUNDED' && payment?.method === 'ONLINE' ? 'Refund via Razorpay' :
                 status === 'REFUNDED' ? 'Mark Refunded (COD)' :
                 status === 'REJECTED' ? 'Reject' :

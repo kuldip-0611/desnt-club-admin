@@ -9,6 +9,8 @@ export type ListProductsParams = {
   limit?: number
   search?: string
   stockStatus?: Exclude<StockStatus, 'ALL'>
+  categoryId?: string
+  subcategoryId?: string
 }
 
 export type PaginatedProductsResponse = {

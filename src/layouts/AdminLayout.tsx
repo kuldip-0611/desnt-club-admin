@@ -25,6 +25,7 @@ import {
   Gift,
   ChevronRight,
   AlertTriangle,
+  Settings,
 } from 'lucide-react'
 import AppShell from '../components/ui/AppShell'
 import { useAuth } from '../hooks/useAuth'
@@ -148,6 +149,12 @@ const AdminLayout = (): ReactElement => {
       items: [
         { to: '/dashboard/users', label: 'Users', icon: <Users size={18} />, matchPrefix: '/dashboard/users' },
         { to: '/dashboard/user-groups', label: 'User Groups', icon: <UsersRound size={18} />, matchPrefix: '/dashboard/user-groups' },
+      ],
+    },
+    {
+      title: 'Settings',
+      items: [
+        { to: '/dashboard/settings', label: 'Store Settings', icon: <Settings size={18} />, matchPrefix: '/dashboard/settings' },
       ],
     },
   ]

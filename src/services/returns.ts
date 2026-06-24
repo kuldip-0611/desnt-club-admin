@@ -17,6 +17,10 @@ export type ReturnRequest = {
   userId: string
   reason: string
   type?: 'RETURN' | 'EXCHANGE'
+  refundMethod?: 'BANK' | 'STORE_CREDIT' | 'UPI'
+  upiId?: string | null
+  refundPaidAt?: string | null
+  refundTransactionRef?: string | null
   exchangeSize?: string | null
   orderItemId?: string | null
   status: ReturnStatus
@@ -62,6 +66,14 @@ export const listReturns = async (params: {
 
 export const getReturn = async (id: string): Promise<ReturnRequest> => {
   const { data } = await api.get<ReturnRequest>(`/admin/returns/${id}`)
+  return data
+}
+
+export const markUpiRefundPaid = async (
+  returnId: string,
+  payload: { transactionRef?: string; note?: string },
+): Promise<{ message: string }> => {
+  const { data } = await api.post(`/admin/returns/${returnId}/mark-refund-paid`, payload)
   return data
 }
 

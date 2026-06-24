@@ -146,6 +146,7 @@ type FormValues = {
   price: number
   /** 0 = no discount; 1–100 = percent off list price */
   discountPercent: number
+  gstRate: number
   audience: ProductAudience
   color: string
   fabrics: FabricFormRow[]
@@ -528,6 +529,7 @@ const ProductForm = (): ReactElement => {
         description: '',
         price: 0,
         discountPercent: 0,
+        gstRate: 0.05,
         audience: 'UNISEX',
         color: '',
         fabrics: [],
@@ -569,6 +571,7 @@ const ProductForm = (): ReactElement => {
               }))
             : [{ sizeId: null, size: 'One size', colorName: existing?.color || '', colorHex: '#000000', quantity: existing?.quantity ?? 0 }],
         isAvailable: existing?.isAvailable ?? true,
+        gstRate: existing?.gstRate ?? 0.05,
       }
 
   const handleSubmit = async (values: FormValues) => {
@@ -617,6 +620,7 @@ const ProductForm = (): ReactElement => {
       if (values.discountPercent >= 1) {
         fd.append('discountPercent', String(Math.min(100, Math.floor(values.discountPercent))))
       }
+      fd.append('gstRate', String(values.gstRate))
       const cid = values.categoryId.trim()
       if (cid) {
         fd.append('categoryId', cid)
@@ -814,7 +818,7 @@ const ProductForm = (): ReactElement => {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label htmlFor="price" className="mb-1 block text-sm font-medium text-slate-700">
-                    Price (₹)
+                    MRP / List Price (₹)
                   </label>
                   <input
                     id="price"
@@ -827,6 +831,9 @@ const ProductForm = (): ReactElement => {
                     onBlur={handleBlur}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                   />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Maximum Retail Price. Apply a discount % below to set the selling price.
+                  </p>
                   <p className="mt-1 text-xs text-red-600">
                     <ErrorMessage name="price" />
                   </p>
@@ -850,8 +857,10 @@ const ProductForm = (): ReactElement => {
                 </div>
               </div>
 
+              {/* Pricing box: Discount + GST + Preview */}
               <div className="rounded-xl border border-slate-200 bg-slate-50/90 p-4">
-                <div className="grid gap-4 sm:grid-cols-2 sm:items-end">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">Pricing</p>
+                <div className="grid gap-4 sm:grid-cols-3">
                   <div>
                     <label
                       htmlFor="discountPercent"
@@ -872,33 +881,60 @@ const ProductForm = (): ReactElement => {
                       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                     />
                     <p className="mt-1 text-xs text-slate-500">
-                      0 = no promotion. Customers see the original price struck through and the discounted price.
+                      0 = no discount. Shows crossed-out MRP on storefront.
                     </p>
                     <p className="mt-1 text-xs text-red-600">
                       <ErrorMessage name="discountPercent" />
                     </p>
                   </div>
-                  <div className="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                  <div>
+                    <label htmlFor="gstRate" className="mb-1 block text-sm font-medium text-slate-700">
+                      GST Rate
+                    </label>
+                    <select
+                      id="gstRate"
+                      name="gstRate"
+                      value={values.gstRate ?? 0.05}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    >
+                      <option value={0}>0% (Exempt)</option>
+                      <option value={0.05}>5%</option>
+                      <option value={0.12}>12%</option>
+                      <option value={0.18}>18%</option>
+                      <option value={0.28}>28%</option>
+                    </select>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Apparel ≤ ₹999 → 5%, above ₹999 → 12%. Shown as "Incl. X% GST" to customers.
+                    </p>
+                  </div>
+                  <div className="flex items-center rounded-lg border border-dashed border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
                     {values.discountPercent >= 1 && Number(values.price) > 0 ? (
-                      <p>
-                        <span className="text-slate-500">Preview: </span>
-                        <span className="text-slate-400 line-through">
-                          ₹{Number(values.price).toFixed(2)}
-                        </span>
-                        <span className="ml-2 font-semibold text-emerald-700">
-                          ₹{(
-                            Math.round(
-                              Number(values.price) *
-                                (100 - Math.min(100, Math.floor(values.discountPercent))),
-                            ) / 100
-                          ).toFixed(2)}
-                        </span>
-                        <span className="ml-1 text-xs text-slate-500">
-                          ({Math.min(100, Math.floor(values.discountPercent))}% off)
-                        </span>
-                      </p>
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">Selling price preview</p>
+                        <p>
+                          <span className="text-slate-400 line-through">
+                            ₹{Number(values.price).toFixed(2)}
+                          </span>
+                          <span className="ml-2 font-semibold text-emerald-700">
+                            ₹{(
+                              Math.round(
+                                Number(values.price) *
+                                  (100 - Math.min(100, Math.floor(values.discountPercent))),
+                              ) / 100
+                            ).toFixed(2)}
+                          </span>
+                          <span className="ml-1 text-xs text-slate-500">
+                            ({Math.min(100, Math.floor(values.discountPercent))}% off)
+                          </span>
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          +{Math.round((values.gstRate ?? 0.05) * 100)}% GST incl.
+                        </p>
+                      </div>
                     ) : (
-                      <p className="text-slate-500">No discount on the storefront.</p>
+                      <p className="text-slate-500 text-xs">No discount. Full MRP shown.</p>
                     )}
                   </div>
                 </div>
