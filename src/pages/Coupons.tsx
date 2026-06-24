@@ -7,6 +7,7 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
 import FilterBar from '../components/ui/FilterBar'
 import KpiCard from '../components/ui/KpiCard'
+import ListLoader from '../components/ui/ListLoader'
 import { deleteCoupon, listCoupons, updateCoupon } from '../services/coupons'
 import type { Coupon } from '../types/coupon'
 
@@ -179,17 +180,6 @@ const Coupons = (): ReactElement => {
     },
   ]
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center rounded-2xl border border-slate-200 bg-white">
-        <div className="flex flex-col items-center gap-3 text-slate-500">
-          <span className="h-10 w-10 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-          <p className="text-sm font-medium">Loading coupons…</p>
-        </div>
-      </div>
-    )
-  }
-
   if (isError) {
     return (
       <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-8 text-center text-sm text-red-800">
@@ -229,9 +219,13 @@ const Coupons = (): ReactElement => {
         onSearchChange={setSearch}
       />
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <ListLoader label="Loading coupons…" />
+      ) : filtered.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-white px-8 py-16 text-center">
-          <p className="text-sm font-medium text-slate-600">No coupons match your search.</p>
+          <p className="text-sm font-medium text-slate-600">
+            {search ? `No coupons match "${search}".` : 'No coupons found.'}
+          </p>
         </div>
       ) : (
         <DataTable

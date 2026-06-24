@@ -1,6 +1,6 @@
 import type { ReactElement, ChangeEvent } from 'react'
 import { useState, useRef, useCallback } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import { AlertTriangle, Package, ChevronDown, ChevronRight, Search, X } from 'lucide-react'
 import { listProducts, updateProductStock, updateProductVariants } from '../services/products'
@@ -221,7 +221,7 @@ const Inventory = (): ReactElement => {
   }
 
   // ── Main paginated query ─────────────────────────────────────────────────
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ['admin-inventory', page, debouncedSearch, stockFilter],
     queryFn: () =>
       listProducts({
@@ -230,7 +230,7 @@ const Inventory = (): ReactElement => {
         search: debouncedSearch || undefined,
         stockStatus: stockFilter !== 'ALL' ? stockFilter : undefined,
       }),
-    placeholderData: (prev) => prev,
+    placeholderData: keepPreviousData,
   })
 
   // ── Alert stats query (page-1 always, for the alert cards) ───────────────
@@ -259,6 +259,8 @@ const Inventory = (): ReactElement => {
   const allProducts: Product[] = data?.items ?? []
   const total = data?.total ?? 0
   const totalPages = data?.totalPages ?? 1
+  const isInitialLoading = isLoading && allProducts.length === 0
+  const isRefreshing = isFetching && allProducts.length > 0
 
   const alertProducts: Product[] = alertData?.items ?? []
   const lowStockAlerts = alertProducts.filter((p) => p.quantity > 0 && p.quantity <= LOW_STOCK)
@@ -416,11 +418,11 @@ const Inventory = (): ReactElement => {
           )}
 
           <span className="text-xs text-slate-500 ml-2 shrink-0">
-            {isLoading ? 'Loading…' : `${total} product${total !== 1 ? 's' : ''}`}
+            {isInitialLoading ? 'Loading…' : `${total} product${total !== 1 ? 's' : ''}`}
           </span>
         </div>
 
-        {isLoading ? (
+        {isInitialLoading ? (
           <div className="flex items-center justify-center py-16 text-slate-400">
             <div className="flex flex-col items-center gap-3">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
@@ -442,7 +444,12 @@ const Inventory = (): ReactElement => {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
+            {isRefreshing ? (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/20 backdrop-blur-[1px]">
+                <span className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+              </div>
+            ) : null}
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b border-white/10 text-left text-xs text-slate-500">

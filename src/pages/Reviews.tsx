@@ -1,8 +1,9 @@
 import type { ReactElement } from 'react'
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { CheckCircle, XCircle } from 'lucide-react'
 import api from '../services/api'
+import ListLoader from '../components/ui/ListLoader'
 
 type Review = {
   id: string
@@ -39,7 +40,7 @@ const Reviews = (): ReactElement => {
   const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
 
-  const { data, isLoading, isError } = useQuery<ReviewsResponse>({
+  const { data, isLoading, isFetching, isError } = useQuery<ReviewsResponse>({
     queryKey: ['admin-reviews', statusFilter, page],
     queryFn: async () => {
       const params: Record<string, string | number> = { page, limit: 20 }
@@ -47,6 +48,7 @@ const Reviews = (): ReactElement => {
       const { data } = await api.get<ReviewsResponse>('/admin/reviews', { params })
       return data
     },
+    placeholderData: keepPreviousData,
   })
 
   const updateMutation = useMutation({
@@ -59,10 +61,8 @@ const Reviews = (): ReactElement => {
   })
 
   const reviews = data?.items ?? []
-
-  if (isLoading) {
-    return <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">Loading reviews…</div>
-  }
+  const isInitialLoading = isLoading && reviews.length === 0
+  const isRefreshing = isFetching && reviews.length > 0
 
   if (isError) {
     return (
@@ -102,12 +102,19 @@ const Reviews = (): ReactElement => {
         </span>
       </div>
 
-      {reviews.length === 0 ? (
+      {isInitialLoading ? (
+        <ListLoader label="Loading reviews…" />
+      ) : reviews.length === 0 ? (
         <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
           No reviews to show.
         </p>
       ) : (
-        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          {isRefreshing ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-[1px]">
+              <span className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+            </div>
+          ) : null}
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>

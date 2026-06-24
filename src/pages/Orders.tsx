@@ -1,9 +1,10 @@
 import type { ReactElement } from 'react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import { Package, ShoppingCart, Clock, CheckCircle2, Truck, XCircle, RotateCcw } from 'lucide-react'
+import ListLoader from '../components/ui/ListLoader'
 import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
 import FilterBar from '../components/ui/FilterBar'
 import { useDebounce } from '../hooks/useDebounce'
@@ -46,7 +47,7 @@ const Orders = (): ReactElement => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatus>('ALL')
   const pageSize = 20
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: ['admin-orders', page, pageSize, debouncedSearch, statusFilter],
     queryFn: () =>
       listOrders({
@@ -55,6 +56,7 @@ const Orders = (): ReactElement => {
         search: debouncedSearch || undefined,
         status: statusFilter === 'ALL' ? undefined : statusFilter,
       }),
+    placeholderData: keepPreviousData,
   })
 
   const updateMutation = useMutation({
@@ -79,6 +81,8 @@ const Orders = (): ReactElement => {
   const orders = data?.items ?? []
   const total = data?.total ?? 0
   const totalPages = data?.totalPages ?? 1
+  const isInitialLoading = isLoading && orders.length === 0
+  const isRefreshing = isFetching && orders.length > 0
 
   const columns: DataTableColumn<Order>[] = [
     {
@@ -242,12 +246,20 @@ const Orders = (): ReactElement => {
         </div>
       )}
 
-      <DataTable
-        columns={columns}
-        rows={orders}
-        rowKey={(o) => o.id}
-        emptyText={isLoading ? 'Loading orders…' : 'No orders found.'}
-      />
+      {isInitialLoading ? (
+        <ListLoader
+          label="Loading orders…"
+          className="rounded-2xl border border-white/10 bg-white/5"
+        />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={orders}
+          rowKey={(o) => o.id}
+          loading={isRefreshing}
+          emptyText={debouncedSearch ? `No orders match "${debouncedSearch}".` : 'No orders found.'}
+        />
+      )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 pt-2">

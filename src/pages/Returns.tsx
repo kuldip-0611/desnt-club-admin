@@ -1,10 +1,11 @@
 import type { ReactElement } from 'react'
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import { RotateCcw } from 'lucide-react'
 import type { AxiosError } from 'axios'
 import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
+import ListLoader from '../components/ui/ListLoader'
 import { listReturns, updateReturnStatus, type ReturnRequest, type ReturnStatus } from '../services/returns'
 
 const RETURN_STATUSES: ReturnStatus[] = ['REQUESTED', 'APPROVED', 'REJECTED', 'RECEIVED', 'REFUNDED', 'EXCHANGED']
@@ -39,7 +40,7 @@ const Returns = (): ReactElement => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | ReturnStatus>('ALL')
   const pageSize = 20
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['admin-returns', page, pageSize, statusFilter],
     queryFn: () =>
       listReturns({
@@ -47,6 +48,7 @@ const Returns = (): ReactElement => {
         limit: pageSize,
         status: statusFilter === 'ALL' ? undefined : statusFilter,
       }),
+    placeholderData: keepPreviousData,
   })
 
   const updateMutation = useMutation({
@@ -100,6 +102,8 @@ const Returns = (): ReactElement => {
   const returns = data?.items ?? []
   const total = data?.total ?? 0
   const totalPages = data?.totalPages ?? 1
+  const isInitialLoading = isLoading && returns.length === 0
+  const isRefreshing = isFetching && returns.length > 0
   const pendingCount = returns.filter((r) =>
     ['REQUESTED', 'APPROVED', 'RECEIVED'].includes(r.status),
   ).length
@@ -360,12 +364,20 @@ const Returns = (): ReactElement => {
         </div>
       ) : null}
 
-      <DataTable
-        columns={columns}
-        rows={returns}
-        rowKey={(r) => r.id}
-        emptyText={isLoading ? 'Loading returns…' : 'No return requests yet.'}
-      />
+      {isInitialLoading ? (
+        <ListLoader
+          label="Loading returns…"
+          className="rounded-2xl border border-white/10 bg-white/5"
+        />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={returns}
+          rowKey={(r) => r.id}
+          loading={isRefreshing}
+          emptyText="No return requests yet."
+        />
+      )}
 
       {totalPages > 1 ? (
         <div className="flex items-center justify-center gap-2 pt-2">

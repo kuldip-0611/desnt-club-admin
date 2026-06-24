@@ -13,6 +13,7 @@ type DataTableProps<T> = {
   rows: T[]
   emptyText?: string
   rowKey: (row: T) => string
+  loading?: boolean
 }
 
 const DataTable = <T,>({
@@ -20,9 +21,15 @@ const DataTable = <T,>({
   rows,
   emptyText = 'No records found.',
   rowKey,
+  loading = false,
 }: DataTableProps<T>): ReactElement => {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {loading ? (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-[1px]">
+          <span className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+        </div>
+      ) : null}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead>

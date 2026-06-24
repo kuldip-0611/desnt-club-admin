@@ -1,11 +1,12 @@
 import type { ReactElement } from 'react'
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import { Settings, Users } from 'lucide-react'
 import api from '../services/api'
 import { adjustUserLoyalty, getLoyaltySettings, updateLoyaltySettings } from '../services/users'
 import type { LoyaltySettings } from '../services/users'
+import ListLoader from '../components/ui/ListLoader'
 
 interface LoyaltyListItem {
   id: string
@@ -232,10 +233,11 @@ const Loyalty = (): ReactElement => {
   const [adjustReason, setAdjustReason] = useState('')
   const [adjustNote, setAdjustNote] = useState('')
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: ['admin-loyalty-list', page],
     queryFn: () => fetchLoyaltyAccounts(page),
     enabled: tab === 'accounts',
+    placeholderData: keepPreviousData,
   })
 
   const adjustMutation = useMutation({
@@ -259,6 +261,8 @@ const Loyalty = (): ReactElement => {
   })
 
   const items = data?.items ?? []
+  const isInitialLoading = isLoading && items.length === 0
+  const isRefreshing = isFetching && items.length > 0
 
   return (
     <div className="space-y-6">
@@ -329,10 +333,8 @@ const Loyalty = (): ReactElement => {
             </div>
           )}
 
-          {isLoading ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-              Loading loyalty accounts…
-            </div>
+          {isInitialLoading ? (
+            <ListLoader label="Loading loyalty accounts…" />
           ) : isError ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-800">
               Could not load loyalty data. Check backend is running.
@@ -342,7 +344,12 @@ const Loyalty = (): ReactElement => {
               No loyalty accounts yet.
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              {isRefreshing ? (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-[1px]">
+                  <span className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                </div>
+              ) : null}
               <table className="w-full text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <tr>

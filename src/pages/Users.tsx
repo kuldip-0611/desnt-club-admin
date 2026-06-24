@@ -1,10 +1,11 @@
 import type { ReactElement } from 'react'
 import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import AccountsSubNav from '../components/AccountsSubNav'
 import UserAdminCard from '../components/UserAdminCard'
 import FilterBar from '../components/ui/FilterBar'
 import KpiCard from '../components/ui/KpiCard'
+import ListLoader from '../components/ui/ListLoader'
 import { useDebounce } from '../hooks/useDebounce'
 import { listUsers } from '../services/users'
 
@@ -21,7 +22,7 @@ const Users = (): ReactElement => {
     setPage(1)
   }, [debouncedSearch])
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: ['admin-users', page, pageSize, debouncedSearch, roleFilter, providerFilter, verifiedFilter],
     queryFn: () =>
       listUsers({
@@ -33,14 +34,13 @@ const Users = (): ReactElement => {
         isVerified:
           verifiedFilter === 'ALL' ? undefined : verifiedFilter === 'VERIFIED',
       }),
+    placeholderData: keepPreviousData,
   })
 
   const users = data?.items ?? []
   const summary = data?.summary ?? { total: 0, verified: 0, admins: 0 }
-
-  if (isLoading) {
-    return <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">Loading users…</div>
-  }
+  const isInitialLoading = isLoading && users.length === 0
+  const isRefreshing = isFetching && users.length > 0
 
   if (isError) {
     return (
@@ -114,12 +114,19 @@ const Users = (): ReactElement => {
         </select>
       </div>
 
-      {users.length === 0 ? (
+      {isInitialLoading ? (
+        <ListLoader label="Loading users…" />
+      ) : users.length === 0 ? (
         <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
           {debouncedSearch ? `No users match "${debouncedSearch}".` : 'No users yet.'}
         </p>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+        <div className={`relative grid gap-6 lg:grid-cols-2 xl:grid-cols-3 ${isRefreshing ? 'opacity-60' : ''}`}>
+          {isRefreshing ? (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-start justify-center pt-16">
+              <span className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+            </div>
+          ) : null}
           {users.map((u) => (
             <UserAdminCard key={u.id} user={u} />
           ))}

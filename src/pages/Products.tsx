@@ -1,12 +1,13 @@
 import type { ReactElement } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, keepPreviousData, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
 import FilterBar from '../components/ui/FilterBar'
 import KpiCard from '../components/ui/KpiCard'
+import ListLoader from '../components/ui/ListLoader'
 import { useDebounce } from '../hooks/useDebounce'
 import {
   deleteProduct,
@@ -51,7 +52,7 @@ const Products = (): ReactElement => {
   const [productToDelete, setProductToDelete] = useState<Product | null>(null)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
 
-  const { data, isLoading, isError, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
+  const { data, isLoading, isFetching, isError, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
     queryKey: ['admin-products-infinite', pageSize, debouncedSearch],
     queryFn: ({ pageParam = 1 }) =>
       listProducts({
@@ -62,6 +63,7 @@ const Products = (): ReactElement => {
     initialPageParam: 1,
     getNextPageParam: (lastPage: PaginatedProductsResponse) =>
       lastPage.hasNextPage ? lastPage.page + 1 : undefined,
+    placeholderData: keepPreviousData,
   })
 
   const products = useMemo(
@@ -72,6 +74,8 @@ const Products = (): ReactElement => {
   const totalPages = data?.pages[0]?.totalPages ?? 1
   const loadedPages = data?.pages.length ?? 1
   const totalItems = data?.pages[0]?.total ?? 0
+  const isInitialLoading = isLoading && products.length === 0
+  const isRefreshing = isFetching && !isFetchingNextPage && products.length > 0
 
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -251,6 +255,7 @@ const Products = (): ReactElement => {
   const deleteMutation = useMutation({
     mutationFn: deleteProduct,
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-products-infinite'] })
       queryClient.invalidateQueries({ queryKey: ['admin-products'] })
       toast.success('Product deleted')
     },
@@ -261,6 +266,7 @@ const Products = (): ReactElement => {
     mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) =>
       updateProduct(id, { isAvailable }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-products-infinite'] })
       queryClient.invalidateQueries({ queryKey: ['admin-products'] })
       toast.success('Availability updated')
     },
@@ -271,6 +277,7 @@ const Products = (): ReactElement => {
     mutationFn: importProductsCsv,
     onSuccess: (res) => {
       toast.success(`Imported ${res.imported} products`)
+      void queryClient.invalidateQueries({ queryKey: ['admin-products-infinite'] })
       void queryClient.invalidateQueries({ queryKey: ['admin-products'] })
     },
     onError: () => toast.error('Import failed — the backend endpoint may not exist yet.'),
@@ -330,17 +337,6 @@ const Products = (): ReactElement => {
 
   const handleToggle = (product: Product) => {
     toggleMutation.mutate({ id: product.id, isAvailable: !product.isAvailable })
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center rounded-2xl border border-slate-200 bg-white">
-        <div className="flex flex-col items-center gap-3 text-slate-500">
-          <span className="h-10 w-10 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-          <p className="text-sm font-medium">Loading products…</p>
-        </div>
-      </div>
-    )
   }
 
   if (isError) {
@@ -404,22 +400,31 @@ const Products = (): ReactElement => {
       />
 
       {/* Table */}
-      {!products?.length ? (
+      {isInitialLoading ? (
+        <ListLoader label="Loading products…" />
+      ) : !products.length ? (
         <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-white px-8 py-16 text-center">
-          <p className="text-lg font-medium text-slate-700">No products yet</p>
-          <p className="mt-2 text-sm text-slate-500">Create your first product to see it in this table.</p>
-          <Link
-            to="/dashboard/products/new"
-            className="mt-6 inline-flex rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500"
-          >
-            Add product
-          </Link>
+          <p className="text-lg font-medium text-slate-700">
+            {debouncedSearch ? `No products match "${debouncedSearch}".` : 'No products yet'}
+          </p>
+          {!debouncedSearch ? (
+            <>
+              <p className="mt-2 text-sm text-slate-500">Create your first product to see it in this table.</p>
+              <Link
+                to="/dashboard/products/new"
+                className="mt-6 inline-flex rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500"
+              >
+                Add product
+              </Link>
+            </>
+          ) : null}
         </div>
       ) : (
         <DataTable
           columns={columns}
           rows={products}
           rowKey={(row) => row.id}
+          loading={isRefreshing}
           emptyText={debouncedSearch ? `No products match "${debouncedSearch}".` : 'No products yet.'}
         />
       )}
