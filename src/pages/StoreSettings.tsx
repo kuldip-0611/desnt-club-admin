@@ -106,7 +106,7 @@ export default function StoreSettings(): ReactElement {
               ))}
             </select>
             <p className="mt-1.5 text-xs text-slate-500">
-              This rate is used for new products. You can override it per-product in the product form.
+              This rate is applied store-wide for cart, checkout, and orders.
             </p>
           </div>
         </div>
