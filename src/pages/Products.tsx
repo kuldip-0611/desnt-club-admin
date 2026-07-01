@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
-import FilterBar from '../components/ui/FilterBar'
 import KpiCard from '../components/ui/KpiCard'
 import ListLoader from '../components/ui/ListLoader'
 import { useDebounce } from '../hooks/useDebounce'
@@ -392,11 +391,14 @@ const Products = (): ReactElement => {
       </div>
 
       {/* Search */}
-      <FilterBar
-        searchId="product-search"
-        searchPlaceholder="Search by product name…"
-        searchValue={search}
-        onSearchChange={setSearch}
+      <input
+        id="product-search"
+        type="text"
+        placeholder="Search by product name…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+        className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
       />
 
       {/* Table */}

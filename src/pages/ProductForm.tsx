@@ -32,6 +32,7 @@ import {
   updateProductImageColor,
   updateProduct,
 } from '../services/products'
+import { apiErrorMessage } from '../services/api'
 import { listFabrics } from '../services/fabrics'
 import { listProductCategories } from '../services/productCategories'
 import { listMeasurementAttributes, listSizes } from '../services/sizing'
@@ -162,6 +163,33 @@ const colorPickerUiValue = (stored: string): string => {
   const t = stored.trim()
   return HEX_COLOR_RE.test(t) ? t.toLowerCase() : '#000000'
 }
+
+const COLOR_PRESETS: { name: string; hex: string }[] = [
+  { name: 'Black',     hex: '#111827' },
+  { name: 'White',     hex: '#f8fafc' },
+  { name: 'Blue',      hex: '#2563eb' },
+  { name: 'Navy',      hex: '#1e3a8a' },
+  { name: 'Red',       hex: '#dc2626' },
+  { name: 'Green',     hex: '#16a34a' },
+  { name: 'Yellow',    hex: '#eab308' },
+  { name: 'Orange',    hex: '#f97316' },
+  { name: 'Pink',      hex: '#ec4899' },
+  { name: 'Purple',    hex: '#7c3aed' },
+  { name: 'Lilac',     hex: '#c084fc' },
+  { name: 'Grey',      hex: '#6b7280' },
+  { name: 'Charcoal',  hex: '#334155' },
+  { name: 'Maroon',    hex: '#7f1d1d' },
+  { name: 'Olive',     hex: '#4d7c0f' },
+  { name: 'Beige',     hex: '#d6d3d1' },
+  { name: 'Mint',      hex: '#10b981' },
+  { name: 'Teal',      hex: '#0d9488' },
+  { name: 'Mustard',   hex: '#ca8a04' },
+  { name: 'Coral',     hex: '#f97316' },
+  { name: 'Brown',     hex: '#92400e' },
+  { name: 'Sky Blue',  hex: '#0284c7' },
+  { name: 'Cream',     hex: '#fef3c7' },
+  { name: 'Off White', hex: '#fafaf9' },
+]
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`
@@ -456,7 +484,7 @@ const ProductForm = (): ReactElement => {
       toast.success('Product created')
       navigate('/dashboard/products')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Create failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Create failed')),
   })
 
   const updateMutation = useMutation({
@@ -466,7 +494,7 @@ const ProductForm = (): ReactElement => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] })
       queryClient.invalidateQueries({ queryKey: ['admin-product', productId] })
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Save failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Save failed')),
   })
 
   const appendImagesMutation = useMutation({
@@ -477,7 +505,7 @@ const ProductForm = (): ReactElement => {
       queryClient.invalidateQueries({ queryKey: ['admin-product', productId] })
       setNewFiles([])
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Upload failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Upload failed')),
   })
 
   const deleteImageMutation = useMutation({
@@ -488,7 +516,7 @@ const ProductForm = (): ReactElement => {
       queryClient.invalidateQueries({ queryKey: ['admin-product', productId] })
       toast.success('Image removed')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Remove failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Remove failed')),
   })
 
   const reorderImagesMutation = useMutation({
@@ -499,7 +527,7 @@ const ProductForm = (): ReactElement => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-product', productId] })
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Reorder failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Reorder failed')),
   })
 
   const updateImageColorMutation = useMutation({
@@ -511,7 +539,7 @@ const ProductForm = (): ReactElement => {
       queryClient.invalidateQueries({ queryKey: ['admin-product', productId] })
       toast.success('Image color updated')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Image color update failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Image color update failed')),
   })
 
   if (!isCreate && !productId) {
@@ -1098,199 +1126,398 @@ const ProductForm = (): ReactElement => {
                   </p>
                 </div>
                 <FieldArray name="variants">
-                  {({ push, remove }) => (
-                    <div className="space-y-2">
-                      {values.variants.map((_, idx) => (
-                        <div
-                          key={`variant-${idx}`}
-                          className="flex flex-wrap items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-3"
-                        >
-                          <div className="min-w-[160px] flex-[2]">
-                            <label
-                              className="mb-0.5 block text-xs font-medium text-slate-600"
-                              htmlFor={`variants.${idx}.catalog-size`}
+                  {({ push, remove }) => {
+                    // Derive ordered unique color groups
+                    const seenColors = new Set<string>()
+                    const colorGroups: string[] = []
+                    for (const v of values.variants) {
+                      const key = v.colorName.trim()
+                      if (!seenColors.has(key)) {
+                        seenColors.add(key)
+                        colorGroups.push(key)
+                      }
+                    }
+
+                    return (
+                      <div className="space-y-4">
+                        {colorGroups.map((colorName) => {
+                          // Representative variant index for this color (first match)
+                          const repIdx = values.variants.findIndex(
+                            (v) => v.colorName.trim() === colorName,
+                          )
+                          const currentHex =
+                            repIdx >= 0
+                              ? colorPickerUiValue(values.variants[repIdx]?.colorHex ?? '')
+                              : '#000000'
+
+                          const colorFiles = newFiles.filter(
+                            (item) =>
+                              item.color.trim().toLowerCase() === colorName.toLowerCase(),
+                          )
+
+                          // Existing images for this color (edit mode)
+                          const existingColorImages = !isCreate
+                            ? (existing?.images ?? []).filter(
+                                (img) =>
+                                  (img.color ?? '').trim().toLowerCase() ===
+                                  colorName.toLowerCase(),
+                              )
+                            : []
+
+                          const variantIndicesForColor = values.variants
+                            .map((v, i) => ({ v, i }))
+                            .filter(({ v }) => v.colorName.trim() === colorName)
+
+                          return (
+                            <div
+                              key={colorName || '__empty__'}
+                              className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3"
                             >
-                              Catalog size
-                            </label>
-                            <select
-                              id={`variants.${idx}.catalog-size`}
-                              value={values.variants[idx]?.sizeId ?? ''}
-                              disabled={sizesLoading}
-                              onChange={(e) => {
-                                const id = e.target.value
-                                if (!id) {
-                                  setFieldValue(`variants.${idx}.sizeId`, null)
-                                  return
-                                }
-                                const row = sortedSizes.find((s) => s.id === id)
-                                setFieldValue(`variants.${idx}.sizeId`, id)
-                                setFieldValue(`variants.${idx}.size`, row?.code ?? '')
-                              }}
-                              className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-indigo-500 disabled:opacity-60"
-                            >
-                              <option value="" disabled={requireCatalog}>
-                                {requireCatalog
-                                  ? 'Select catalog size (required)'
-                                  : 'Custom (type label below)'}
-                              </option>
-                              {sortedSizes.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.code}
-                                  {s.name ? ` — ${s.name}` : ''}
-                                  {!s.isActive ? ' (inactive)' : ''}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="min-w-[100px] flex-1">
-                            <label
-                              className="mb-0.5 block text-xs font-medium text-slate-600"
-                              htmlFor={`variants.${idx}.size`}
-                            >
-                              Size label
-                            </label>
-                            <Field
-                              id={`variants.${idx}.size`}
-                              name={`variants.${idx}.size`}
-                              disabled={Boolean(values.variants[idx]?.sizeId)}
-                              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-600"
-                              placeholder="e.g. M or One size"
-                            />
-                            <p className="mt-0.5 text-xs text-slate-500">
-                              {values.variants[idx]?.sizeId
-                                ? 'Set from catalog; change dropdown to edit.'
-                                : 'Shown on the storefront.'}
-                            </p>
-                            <p className="mt-0.5 text-xs text-red-600">
-                              <ErrorMessage name={`variants.${idx}.size`} />
-                            </p>
-                          </div>
-                          <div className="min-w-[160px] flex-1">
-                            <label
-                              className="mb-0.5 block text-xs font-medium text-slate-600"
-                              htmlFor={`variants.${idx}.colorName`}
-                            >
-                              Color name
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="color"
-                                aria-label={`Pick color for variant row ${idx + 1}`}
-                                title="Pick variant color"
-                                className="h-9 w-11 shrink-0 cursor-pointer rounded-md border border-slate-300 bg-white p-1"
-                                value={colorPickerUiValue(values.variants[idx]?.colorHex ?? '')}
-                                onChange={(e) => setFieldValue(`variants.${idx}.colorHex`, e.target.value)}
-                              />
-                              <Field
-                                id={`variants.${idx}.colorName`}
-                                name={`variants.${idx}.colorName`}
-                                className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-indigo-500"
-                                placeholder="Black, Navy, White..."
-                              />
-                            </div>
-                            <p className="mt-0.5 text-xs text-slate-500">Use color name. Picker is optional for swatch.</p>
-                            <p className="mt-0.5 text-xs text-red-600">
-                              <ErrorMessage name={`variants.${idx}.colorName`} />
-                            </p>
-                          </div>
-                          <div className="w-28">
-                            <label
-                              className="mb-0.5 block text-xs font-medium text-slate-600"
-                              htmlFor={`variants.${idx}.quantity`}
-                            >
-                              Qty
-                            </label>
-                            <Field
-                              id={`variants.${idx}.quantity`}
-                              name={`variants.${idx}.quantity`}
-                              type="number"
-                              min={0}
-                              step={1}
-                              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm tabular-nums outline-none focus:border-indigo-500"
-                            />
-                            <p className="mt-0.5 text-xs text-red-600">
-                              <ErrorMessage name={`variants.${idx}.quantity`} />
-                            </p>
-                          </div>
-                          <div className="w-full rounded-lg border border-dashed border-slate-300 bg-white/80 p-2">
-                            <p className="mb-1 text-xs font-medium text-slate-700">
-                              Images for {values.variants[idx]?.colorName?.trim() || 'this color'}
-                            </p>
-                            <input
-                              type="file"
-                              accept="image/jpeg,image/png,image/gif,image/webp"
-                              multiple
-                              onChange={(event) => {
-                                const variantColor = values.variants[idx]?.colorName?.trim()
-                                if (!variantColor) {
-                                  toast.warn('Enter variant color name first, then add images.')
-                                  event.target.value = ''
-                                  return
-                                }
-                                const picked = Array.from(event.target.files ?? [])
-                                if (!picked.length) return
-                                const maxBytes = settings?.uploads.limits.productImageMaxBytes ?? 1 * 1024 * 1024
-                                const allowed = new Set(settings?.uploads.image.mimeTypes ?? [
-                                  'image/jpeg',
-                                  'image/jpg',
-                                  'image/png',
-                                  'image/gif',
-                                  'image/webp',
-                                ])
-                                const badType = picked.find((file) => !allowed.has(file.type))
-                                if (badType) {
-                                  toast.error('Only JPEG, PNG, GIF, or WebP images are allowed')
-                                  event.target.value = ''
-                                  return
-                                }
-                                const tooLarge = picked.find((file) => file.size > maxBytes)
-                                if (tooLarge) {
-                                  toast.error(`Each product image must be <= ${(maxBytes / (1024 * 1024)).toFixed(0)} MB`)
-                                  event.target.value = ''
-                                  return
-                                }
-                                setNewFiles((prev) => {
-                                  const merged = [...prev, ...picked.map((file) => ({ file, color: variantColor }))]
-                                  const seen = new Set<string>()
-                                  return merged.filter((item) => {
-                                    const key = `${item.file.name}-${item.file.size}-${item.file.lastModified}-${item.color.toLowerCase()}`
-                                    if (seen.has(key)) return false
-                                    seen.add(key)
-                                    return true
+                              {/* Color header row */}
+                              <div className="flex flex-wrap items-start gap-3">
+                                {/* Color dot / native picker */}
+                                <label
+                                  title="Pick custom color"
+                                  className="relative mt-0.5 h-9 w-9 shrink-0 cursor-pointer rounded-full border-2 border-slate-300 hover:border-indigo-400"
+                                  style={{ backgroundColor: currentHex }}
+                                >
+                                  <input
+                                    type="color"
+                                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                                    value={currentHex}
+                                    onChange={(e) => {
+                                      const hex = e.target.value
+                                      values.variants.forEach((v, i) => {
+                                        if (v.colorName.trim() === colorName) {
+                                          setFieldValue(`variants.${i}.colorHex`, hex)
+                                        }
+                                      })
+                                    }}
+                                  />
+                                </label>
+
+                                {/* Color name field */}
+                                <div className="flex-1 min-w-[160px]">
+                                  <input
+                                    type="text"
+                                    value={colorName}
+                                    placeholder="Color name e.g. Black, Navy…"
+                                    className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-indigo-500"
+                                    onChange={(e) => {
+                                      const newName = e.target.value
+                                      values.variants.forEach((v, i) => {
+                                        if (v.colorName.trim() === colorName) {
+                                          setFieldValue(`variants.${i}.colorName`, newName)
+                                          // auto-fill hex if matches preset
+                                          const preset = COLOR_PRESETS.find(
+                                            (p) =>
+                                              p.name.toLowerCase() ===
+                                              newName.trim().toLowerCase(),
+                                          )
+                                          if (preset) {
+                                            setFieldValue(`variants.${i}.colorHex`, preset.hex)
+                                          }
+                                        }
+                                      })
+                                    }}
+                                  />
+                                  {/* Preset swatches */}
+                                  <div className="mt-2 flex flex-wrap gap-1">
+                                    {COLOR_PRESETS.map((preset) => {
+                                      const isSelected =
+                                        colorName.toLowerCase() ===
+                                        preset.name.toLowerCase()
+                                      return (
+                                        <button
+                                          key={preset.name}
+                                          type="button"
+                                          title={preset.name}
+                                          onClick={() => {
+                                            values.variants.forEach((v, i) => {
+                                              if (v.colorName.trim() === colorName) {
+                                                setFieldValue(
+                                                  `variants.${i}.colorName`,
+                                                  preset.name,
+                                                )
+                                                setFieldValue(
+                                                  `variants.${i}.colorHex`,
+                                                  preset.hex,
+                                                )
+                                              }
+                                            })
+                                          }}
+                                          className={`h-5 w-5 rounded-full border-2 transition-all hover:scale-110 ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-300' : 'border-white/60'}`}
+                                          style={{ backgroundColor: preset.hex }}
+                                        />
+                                      )
+                                    })}
+                                  </div>
+                                  <p className="mt-1 text-[11px] text-slate-400">
+                                    Click dot to pick any custom color · or tap a swatch
+                                  </p>
+                                </div>
+
+                                {/* Remove entire color button */}
+                                {colorGroups.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      // Remove all variants with this color (reverse to keep indices stable)
+                                      const toRemove = values.variants
+                                        .map((v, i) => ({ v, i }))
+                                        .filter(({ v }) => v.colorName.trim() === colorName)
+                                        .map(({ i }) => i)
+                                        .reverse()
+                                      toRemove.forEach((i) => remove(i))
+                                      // Remove files for this color
+                                      setNewFiles((prev) =>
+                                        prev.filter(
+                                          (item) =>
+                                            item.color.trim().toLowerCase() !==
+                                            colorName.toLowerCase(),
+                                        ),
+                                      )
+                                    }}
+                                    className="shrink-0 rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
+                                  >
+                                    Remove color
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Image upload for this color */}
+                              <div>
+                                <p className="text-xs font-medium text-slate-600 mb-1">
+                                  Images for {colorName || 'this color'}
+                                </p>
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/gif,image/webp"
+                                  multiple
+                                  onChange={(event) => {
+                                    if (!colorName.trim()) {
+                                      toast.warn('Enter color name first, then add images.')
+                                      event.target.value = ''
+                                      return
+                                    }
+                                    const picked = Array.from(event.target.files ?? [])
+                                    if (!picked.length) return
+                                    const maxBytes =
+                                      settings?.uploads.limits.productImageMaxBytes ??
+                                      1 * 1024 * 1024
+                                    const allowed = new Set(
+                                      settings?.uploads.image.mimeTypes ?? [
+                                        'image/jpeg',
+                                        'image/jpg',
+                                        'image/png',
+                                        'image/gif',
+                                        'image/webp',
+                                      ],
+                                    )
+                                    const badType = picked.find((file) => !allowed.has(file.type))
+                                    if (badType) {
+                                      toast.error('Only JPEG, PNG, GIF, or WebP images are allowed')
+                                      event.target.value = ''
+                                      return
+                                    }
+                                    const tooLarge = picked.find((file) => file.size > maxBytes)
+                                    if (tooLarge) {
+                                      toast.error(
+                                        `Each product image must be <= ${(maxBytes / (1024 * 1024)).toFixed(0)} MB`,
+                                      )
+                                      event.target.value = ''
+                                      return
+                                    }
+                                    setNewFiles((prev) => {
+                                      const merged = [
+                                        ...prev,
+                                        ...picked.map((file) => ({ file, color: colorName })),
+                                      ]
+                                      const seen = new Set<string>()
+                                      return merged.filter((item) => {
+                                        const key = `${item.file.name}-${item.file.size}-${item.file.lastModified}-${item.color.toLowerCase()}`
+                                        if (seen.has(key)) return false
+                                        seen.add(key)
+                                        return true
+                                      })
+                                    })
+                                    event.target.value = ''
+                                  }}
+                                  className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
+                                />
+                                {colorFiles.length > 0 ? (
+                                  <ul className="mt-3 space-y-2">
+                                    {colorFiles.map((item) => (
+                                      <li
+                                        key={`${item.file.name}-${item.file.size}-${item.file.lastModified}-${item.color}`}
+                                      >
+                                        <LocalPickedFileRow
+                                          file={item.file}
+                                          color={item.color}
+                                          onRemove={() => {
+                                            setNewFiles((prev) =>
+                                              prev.filter((entry) => entry !== item),
+                                            )
+                                          }}
+                                        />
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="mt-2 text-xs text-slate-400">
+                                    No images selected for {colorName || 'this color'}.
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Existing images for this color (edit mode) */}
+                              {existingColorImages.length > 0 && (
+                                <SortableImageGrid
+                                  images={existingColorImages}
+                                  onReorder={(newOrder) =>
+                                    reorderImagesMutation.mutate(newOrder)
+                                  }
+                                  onColorBlur={(imageId, color) =>
+                                    updateImageColorMutation.mutate({ imageId, color })
+                                  }
+                                  onDelete={(imageId) => setImageToDelete(imageId)}
+                                  deletePending={deleteImageMutation.isPending}
+                                />
+                              )}
+
+                              {/* Size rows table */}
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="text-left text-xs font-medium text-slate-500">
+                                    <th className="pb-1 pr-2">Catalog size</th>
+                                    <th className="pb-1 pr-2">Label</th>
+                                    <th className="pb-1 pr-2 w-20">Qty</th>
+                                    <th className="pb-1 w-8"></th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {variantIndicesForColor.map(({ i: idx }) => (
+                                    <tr key={idx}>
+                                      <td className="py-1.5 pr-2">
+                                        <select
+                                          value={values.variants[idx]?.sizeId ?? ''}
+                                          disabled={sizesLoading}
+                                          onChange={(e) => {
+                                            const id = e.target.value
+                                            if (!id) {
+                                              setFieldValue(`variants.${idx}.sizeId`, null)
+                                              return
+                                            }
+                                            const row = sortedSizes.find((s) => s.id === id)
+                                            setFieldValue(`variants.${idx}.sizeId`, id)
+                                            setFieldValue(
+                                              `variants.${idx}.size`,
+                                              row?.code ?? '',
+                                            )
+                                          }}
+                                          className="w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-xs outline-none focus:border-indigo-500 disabled:opacity-60"
+                                        >
+                                          <option value="" disabled={requireCatalog}>
+                                            {requireCatalog
+                                              ? 'Select (required)'
+                                              : 'Custom'}
+                                          </option>
+                                          {sortedSizes.map((s) => (
+                                            <option key={s.id} value={s.id}>
+                                              {s.code}
+                                              {s.name ? ` — ${s.name}` : ''}
+                                              {!s.isActive ? ' (inactive)' : ''}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </td>
+                                      <td className="py-1.5 pr-2">
+                                        <Field
+                                          name={`variants.${idx}.size`}
+                                          disabled={Boolean(values.variants[idx]?.sizeId)}
+                                          className="w-full rounded-md border border-slate-300 px-2 py-1 text-xs outline-none focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-600"
+                                          placeholder="e.g. M"
+                                        />
+                                        <p className="mt-0.5 text-[10px] text-red-600">
+                                          <ErrorMessage name={`variants.${idx}.size`} />
+                                        </p>
+                                      </td>
+                                      <td className="py-1.5 pr-2 w-20">
+                                        <Field
+                                          name={`variants.${idx}.quantity`}
+                                          type="number"
+                                          min={0}
+                                          step={1}
+                                          className="w-full rounded-md border border-slate-300 px-2 py-1 text-xs tabular-nums outline-none focus:border-indigo-500"
+                                        />
+                                        <p className="mt-0.5 text-[10px] text-red-600">
+                                          <ErrorMessage name={`variants.${idx}.quantity`} />
+                                        </p>
+                                      </td>
+                                      <td className="py-1.5 w-8 text-center">
+                                        <button
+                                          type="button"
+                                          title="Remove size row"
+                                          onClick={() => {
+                                            if (values.variants.length <= 1) {
+                                              toast.warn('Keep at least one size row.')
+                                              return
+                                            }
+                                            remove(idx)
+                                          }}
+                                          className="rounded text-red-500 hover:text-red-700 font-bold text-base leading-none px-1"
+                                        >
+                                          ✕
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+
+                              {/* + Add size to this color */}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  push({
+                                    sizeId: null,
+                                    size: '',
+                                    colorName,
+                                    colorHex: currentHex,
+                                    quantity: 0,
                                   })
-                                })
-                                event.target.value = ''
-                              }}
-                              className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (values.variants.length <= 1) {
-                                toast.warn('Keep at least one size row.')
-                                return
-                              }
-                              remove(idx)
-                            }}
-                            className="ml-auto mt-5 shrink-0 rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => push({ sizeId: null, size: '', colorName: '', colorHex: '#000000', quantity: 0 })}
-                        className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        + Add size row
-                      </button>
-                      {typeof errors.variants === 'string' && (
-                        <p className="text-xs text-red-600">{errors.variants}</p>
-                      )}
-                    </div>
-                  )}
+                                }
+                                className="rounded-md border border-dashed border-indigo-300 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                              >
+                                + Add size
+                              </button>
+                            </div>
+                          )
+                        })}
+
+                        {/* + Add Color button */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            push({
+                              sizeId: null,
+                              size: '',
+                              colorName: '',
+                              colorHex: '#000000',
+                              quantity: 0,
+                            })
+                          }
+                          className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          + Add color
+                        </button>
+
+                        {typeof errors.variants === 'string' && (
+                          <p className="text-xs text-red-600">{errors.variants}</p>
+                        )}
+                      </div>
+                    )
+                  }}
                 </FieldArray>
               </div>
 
@@ -1308,98 +1535,35 @@ const ProductForm = (): ReactElement => {
                 </label>
               </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Images by variant color
-                </label>
-                <p className="mb-2 text-xs text-slate-500">
-                  Add images under each variant color. User panel will switch images when that color is selected.
-                </p>
-                {variantColors.length === 0 ? (
-                  <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                    Add at least one variant color to enable color-wise image upload.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {variantColors.map((color) => {
-                      const colorFiles = newFiles.filter((item) => item.color.trim().toLowerCase() === color.toLowerCase())
-                      return (
-                        <div key={color} className="rounded-xl border border-slate-200 p-3">
-                          <p className="mb-2 text-sm font-semibold text-slate-800">{color}</p>
-                          <input
-                            type="file"
-                            accept="image/jpeg,image/png,image/gif,image/webp"
-                            multiple
-                            onChange={(event) => {
-                              const picked = Array.from(event.target.files ?? [])
-                              if (!picked.length) return
-                              const maxBytes = settings?.uploads.limits.productImageMaxBytes ?? 1 * 1024 * 1024
-                              const allowed = new Set(settings?.uploads.image.mimeTypes ?? [
-                                'image/jpeg',
-                                'image/jpg',
-                                'image/png',
-                                'image/gif',
-                                'image/webp',
-                              ])
-                              const badType = picked.find((file) => !allowed.has(file.type))
-                              if (badType) {
-                                toast.error('Only JPEG, PNG, GIF, or WebP images are allowed')
-                                event.target.value = ''
-                                return
-                              }
-                              const tooLarge = picked.find((file) => file.size > maxBytes)
-                              if (tooLarge) {
-                                toast.error(`Each product image must be <= ${(maxBytes / (1024 * 1024)).toFixed(0)} MB`)
-                                event.target.value = ''
-                                return
-                              }
-                              setNewFiles((prev) => {
-                                const merged = [...prev, ...picked.map((file) => ({ file, color }))]
-                                const seen = new Set<string>()
-                                return merged.filter((item) => {
-                                  const key = `${item.file.name}-${item.file.size}-${item.file.lastModified}-${item.color.toLowerCase()}`
-                                  if (seen.has(key)) return false
-                                  seen.add(key)
-                                  return true
-                                })
-                              })
-                              event.target.value = ''
-                            }}
-                            className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
-                          />
-                          {colorFiles.length > 0 ? (
-                            <ul className="mt-3 space-y-2">
-                              {colorFiles.map((item) => (
-                                <li key={`${item.file.name}-${item.file.size}-${item.file.lastModified}-${item.color}`}>
-                                  <LocalPickedFileRow
-                                    file={item.file}
-                                    color={item.color}
-                                    onRemove={() => {
-                                      setNewFiles((prev) => prev.filter((entry) => entry !== item))
-                                    }}
-                                  />
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="mt-2 text-xs text-slate-400">No images selected for {color}.</p>
-                          )}
-                        </div>
-                      )
-                    })}
+              {/* Existing images without a color match are shown at the bottom (edit mode) */}
+              {!isCreate && (() => {
+                const assignedImageIds = new Set(
+                  (existing?.images ?? [])
+                    .filter((img) => {
+                      const c = (img.color ?? '').trim().toLowerCase()
+                      return c.length > 0 && variantColors.some((vc) => vc.toLowerCase() === c)
+                    })
+                    .map((img) => img.id),
+                )
+                const unassigned = (existing?.images ?? []).filter(
+                  (img) => !assignedImageIds.has(img.id),
+                )
+                if (!unassigned.length) return null
+                return (
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-slate-700">Other existing images</p>
+                    <SortableImageGrid
+                      images={unassigned}
+                      onReorder={(newOrder) => reorderImagesMutation.mutate(newOrder)}
+                      onColorBlur={(imageId, color) =>
+                        updateImageColorMutation.mutate({ imageId, color })
+                      }
+                      onDelete={(imageId) => setImageToDelete(imageId)}
+                      deletePending={deleteImageMutation.isPending}
+                    />
                   </div>
-                )}
-              </div>
-
-              {!isCreate && existing?.images?.length ? (
-                <SortableImageGrid
-                  images={existing.images}
-                  onReorder={(newOrder) => reorderImagesMutation.mutate(newOrder)}
-                  onColorBlur={(imageId, color) => updateImageColorMutation.mutate({ imageId, color })}
-                  onDelete={(imageId) => setImageToDelete(imageId)}
-                  deletePending={deleteImageMutation.isPending}
-                />
-              ) : null}
+                )
+              })()}
 
               <button
                 type="submit"

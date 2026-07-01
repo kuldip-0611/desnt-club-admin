@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../services/api'
 import type { ReactElement } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
@@ -22,7 +23,7 @@ const Fabrics = (): ReactElement => {
       queryClient.invalidateQueries({ queryKey: ['admin-fabrics'] })
       toast.success('Fabric deleted')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Delete failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Delete failed')),
   })
 
   const toggleMutation = useMutation({
@@ -31,7 +32,7 @@ const Fabrics = (): ReactElement => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-fabrics'] })
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Update failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Update failed')),
   })
 
   const handleDelete = (f: Fabric) => {

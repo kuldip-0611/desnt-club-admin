@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../services/api'
 import type { ReactElement } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Field, Form, Formik, ErrorMessage } from 'formik'
@@ -103,7 +104,7 @@ const CouponForm = (): ReactElement => {
       toast.success('Coupon created')
       navigate('/dashboard/coupons')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Create failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Create failed')),
   })
 
   const updateMutation = useMutation({
@@ -115,7 +116,7 @@ const CouponForm = (): ReactElement => {
       toast.success('Coupon saved')
       navigate('/dashboard/coupons')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Save failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Save failed')),
   })
 
   if (!isCreate && isLoading) {

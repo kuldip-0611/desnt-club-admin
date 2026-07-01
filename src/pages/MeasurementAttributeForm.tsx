@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../services/api'
 import type { ReactElement } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Field, Form, Formik, ErrorMessage } from 'formik'
@@ -55,7 +56,7 @@ const MeasurementAttributeForm = (): ReactElement => {
       toast.success('Attribute created')
       navigate('/dashboard/measurement-attributes')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Save failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Save failed')),
   })
 
   const updateMutation = useMutation({
@@ -67,7 +68,7 @@ const MeasurementAttributeForm = (): ReactElement => {
       toast.success('Saved')
       navigate('/dashboard/measurement-attributes')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Save failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Save failed')),
   })
 
   if (!isCreate && isLoading) {

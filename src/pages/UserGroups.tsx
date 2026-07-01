@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../services/api'
 import type { FormEvent, ReactElement } from 'react'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -72,7 +73,7 @@ const UserGroups = (): ReactElement => {
       invalidate()
       toast.success('Group created')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Create failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Create failed')),
   })
 
   const addMemberMutation = useMutation({
@@ -82,7 +83,7 @@ const UserGroups = (): ReactElement => {
       invalidate()
       toast.success('Member added')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Add member failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Add member failed')),
   })
 
   const removeMemberMutation = useMutation({
@@ -91,7 +92,7 @@ const UserGroups = (): ReactElement => {
       invalidate()
       toast.success('Member removed')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Remove failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Remove failed')),
   })
 
   const assignCouponMutation = useMutation({
@@ -101,7 +102,7 @@ const UserGroups = (): ReactElement => {
       invalidate()
       toast.success('Coupon assigned to group')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Assign failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Assign failed')),
   })
 
   const unassignCouponMutation = useMutation({
@@ -110,7 +111,7 @@ const UserGroups = (): ReactElement => {
       invalidate()
       toast.success('Coupon removed from group')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Remove failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Remove failed')),
   })
 
   const deleteMutation = useMutation({
@@ -121,7 +122,7 @@ const UserGroups = (): ReactElement => {
       invalidate()
       toast.success('Group deleted')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Delete failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Delete failed')),
   })
 
   const toggleActiveMutation = useMutation({
@@ -131,7 +132,7 @@ const UserGroups = (): ReactElement => {
       invalidate()
       toast.success('Group updated')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Update failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Update failed')),
   })
 
   const handleCreate = (e: FormEvent): void => {

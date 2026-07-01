@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../services/api'
 import type { ReactElement } from 'react'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -70,7 +71,7 @@ const ProductCategoryForm = (): ReactElement => {
       toast.success('Saved')
       navigate('/dashboard/product-categories')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Save failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Save failed')),
   })
 
   if (!isCreate && isLoading) {
@@ -154,7 +155,7 @@ const ProductCategoryForm = (): ReactElement => {
               )
               navigate(`/dashboard/product-categories/${category.id}/edit`)
             } catch (err) {
-              toast.error(err instanceof Error ? err.message : 'Save failed')
+              toast.error(apiErrorMessage(err, 'Save failed'))
             } finally {
               setIsSaving(false)
             }

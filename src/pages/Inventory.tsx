@@ -1,8 +1,9 @@
 import type { ReactElement, ChangeEvent } from 'react'
 import { useState, useRef, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
-import { AlertTriangle, Package, ChevronDown, ChevronRight, Search, X } from 'lucide-react'
+import { AlertTriangle, Package, ChevronDown, ChevronRight, Search, X, Pencil } from 'lucide-react'
 import { listProducts, updateProductStock, updateProductVariants } from '../services/products'
 import { useDebounce } from '../hooks/useDebounce'
 import type { Product, ProductVariant } from '../types/product'
@@ -154,27 +155,40 @@ const StockRow = ({
           )}
         </td>
         <td className="px-4 py-3">
-          {hasVariants ? (
-            <button
-              type="button"
-              onClick={() => { onUpdate(product.id, 0); setQty('0') }}
-              className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/20 transition-colors"
+          <div className="flex flex-wrap items-center gap-1.5">
+            {hasVariants ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const zeroed = product.variants!.map((v) => ({ ...v, quantity: 0 }))
+                  updateProductVariants(product.id, zeroed)
+                    .then(onRefresh)
+                    .catch(() => toast.error('Failed to zero variants'))
+                }}
+                className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/20 transition-colors"
+              >
+                Zero all
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  const val = window.prompt(`Set stock for "${product.name}":`, String(product.quantity))
+                  const n = parseInt(val ?? '', 10)
+                  if (!isNaN(n) && n >= 0) { onUpdate(product.id, n); setQty(String(n)) }
+                }}
+                className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/20 transition-colors"
+              >
+                + Set
+              </button>
+            )}
+            <Link
+              to={`/dashboard/products/${product.id}/edit`}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-600 bg-slate-700/40 px-2.5 py-1 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition-colors"
             >
-              Zero all
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                const val = window.prompt(`Set stock for "${product.name}":`, String(product.quantity))
-                const n = parseInt(val ?? '', 10)
-                if (!isNaN(n) && n >= 0) { onUpdate(product.id, n); setQty(String(n)) }
-              }}
-              className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/20 transition-colors"
-            >
-              + Set
-            </button>
-          )}
+              <Pencil size={10} /> Edit
+            </Link>
+          </div>
         </td>
       </tr>
       {expanded && hasVariants ? (
@@ -263,8 +277,16 @@ const Inventory = (): ReactElement => {
   const isRefreshing = isFetching && allProducts.length > 0
 
   const alertProducts: Product[] = alertData?.items ?? []
-  const lowStockAlerts = alertProducts.filter((p) => p.quantity > 0 && p.quantity <= LOW_STOCK)
-  const outOfStockAlerts = alertProducts.filter((p) => p.quantity === 0)
+  const hasLowVariant = (p: Product) =>
+    p.variants && p.variants.length > 0
+      ? p.variants.some((v) => v.quantity > 0 && v.quantity <= LOW_STOCK)
+      : p.quantity > 0 && p.quantity <= LOW_STOCK
+  const hasOutOfVariant = (p: Product) =>
+    p.variants && p.variants.length > 0
+      ? p.variants.every((v) => v.quantity === 0)
+      : p.quantity === 0
+  const lowStockAlerts = alertProducts.filter((p) => !hasOutOfVariant(p) && hasLowVariant(p))
+  const outOfStockAlerts = alertProducts.filter((p) => hasOutOfVariant(p))
 
   // Stats from alert data (full first page, good enough for stats)
   const inStockCount = alertData?.total ? alertData.total - outOfStockAlerts.length - lowStockAlerts.length : 0
@@ -340,30 +362,52 @@ const Inventory = (): ReactElement => {
       {/* Low-stock alert cards */}
       {lowStockAlerts.length > 0 && (
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5">
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-amber-300">
-            <AlertTriangle size={15} /> Low Stock Alert ({lowStockAlerts.length})
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {lowStockAlerts.map((p) => (
-              <div key={p.id} className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-200">{p.name}</p>
-                  <p className="text-xs text-amber-400">Only {p.quantity} left</p>
+          {(() => {
+            const lowVariantRows: { product: Product; variant: ProductVariant }[] = []
+            for (const p of lowStockAlerts) {
+              if (p.variants && p.variants.length > 0) {
+                for (const v of p.variants) {
+                  if (v.quantity > 0 && v.quantity <= LOW_STOCK) {
+                    lowVariantRows.push({ product: p, variant: v })
+                  }
+                }
+              } else if (p.quantity > 0 && p.quantity <= LOW_STOCK) {
+                lowVariantRows.push({ product: p, variant: { id: p.id, size: '', color: '', quantity: p.quantity } as ProductVariant })
+              }
+            }
+            return (
+              <>
+                <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-amber-300">
+                  <AlertTriangle size={15} /> Low Stock Alert ({lowVariantRows.length} variant{lowVariantRows.length !== 1 ? 's' : ''})
+                </h2>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {lowVariantRows.map(({ product: p, variant: v }) => {
+                    const label = [v.size, v.color].filter(Boolean).join(' · ')
+                    return (
+                      <div key={`${p.id}-${v.id}`} className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+                        <div>
+                          <p className="text-sm font-medium text-slate-200">{p.name}</p>
+                          {label && <p className="text-[11px] font-semibold text-slate-400">{label}</p>}
+                          <p className="text-xs text-amber-400">Only {v.quantity} left</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const val = window.prompt(`Add stock for "${p.name}" — ${label || 'total'} (current: ${v.quantity}):`, '20')
+                            const n = parseInt(val ?? '', 10)
+                            if (!isNaN(n) && n > 0) handleUpdate(p.id, n)
+                          }}
+                          className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/20 transition-colors"
+                        >
+                          + Stock
+                        </button>
+                      </div>
+                    )
+                  })}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const val = window.prompt(`Add stock for "${p.name}" (current: ${p.quantity}):`, '20')
-                    const n = parseInt(val ?? '', 10)
-                    if (!isNaN(n) && n > 0) handleUpdate(p.id, n)
-                  }}
-                  className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/20 transition-colors"
-                >
-                  + Stock
-                </button>
-              </div>
-            ))}
-          </div>
+              </>
+            )
+          })()}
         </div>
       )}
 

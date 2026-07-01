@@ -26,6 +26,7 @@ import {
   ChevronRight,
   AlertTriangle,
   Settings,
+  ScrollText,
 } from 'lucide-react'
 import AppShell from '../components/ui/AppShell'
 import { useAuth } from '../hooks/useAuth'
@@ -135,6 +136,7 @@ const AdminLayout = (): ReactElement => {
         { to: '/dashboard/loyalty', label: 'Loyalty', icon: <Star size={18} />, matchPrefix: '/dashboard/loyalty' },
         { to: '/dashboard/reviews', label: 'Reviews', icon: <Star size={18} />, matchPrefix: '/dashboard/reviews' },
         { to: '/dashboard/gift-cards', label: 'Gift Cards', icon: <Gift size={18} />, matchPrefix: '/dashboard/gift-cards' },
+        { to: '/dashboard/audit-logs', label: 'Audit Logs', icon: <ScrollText size={18} />, matchPrefix: '/dashboard/audit-logs' },
       ],
     },
     {

@@ -12,6 +12,14 @@ interface StoreConfig {
   currency: string
   freeShippingThreshold: string
   shippingFee: string
+  sellerName: string
+  sellerAddress: string
+  sellerCity: string
+  sellerState: string
+  sellerPincode: string
+  sellerPhone: string
+  customerCarePhone: string
+  gstin: string
 }
 
 const DEFAULT_CONFIG: StoreConfig = {
@@ -22,6 +30,14 @@ const DEFAULT_CONFIG: StoreConfig = {
   currency: 'INR',
   freeShippingThreshold: '999',
   shippingFee: '99',
+  sellerName: '',
+  sellerAddress: '',
+  sellerCity: '',
+  sellerState: '',
+  sellerPincode: '',
+  sellerPhone: '',
+  customerCarePhone: '',
+  gstin: '',
 }
 
 const GST_RATES = [
@@ -215,6 +231,77 @@ export default function StoreSettings(): ReactElement {
               ? <>Orders under ₹{config.freeShippingThreshold} → <strong className="text-slate-800 dark:text-slate-200">₹{config.shippingFee} shipping</strong> · Orders ₹{config.freeShippingThreshold}+ → <strong className="text-emerald-600 dark:text-emerald-400">Free shipping</strong></>
               : <>All orders charge <strong className="text-slate-800 dark:text-slate-200">₹{config.shippingFee} shipping</strong></>
             }
+          </div>
+        </div>
+      </section>
+
+      {/* Seller / Shipping Label Info */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
+        <div className="mb-5 flex items-center gap-2">
+          <Truck size={16} className="text-cyan-400" />
+          <div>
+            <h2 className="font-semibold text-slate-900 dark:text-white">Seller Info (Shipping Label)</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Printed on the "Shipped By" section of every shipping label</p>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Seller / Owner Name</label>
+              <input type="text" value={config.sellerName} onChange={set('sellerName')}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder="JAY BHARATBHAI GOLAKIYA" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">GSTIN</label>
+              <input type="text" value={config.gstin} onChange={set('gstin')}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-mono focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder="24ABCDE1234F1Z5" />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Seller Address</label>
+            <input type="text" value={config.sellerAddress} onChange={set('sellerAddress')}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              placeholder="Building, Street, Area" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">City</label>
+              <input type="text" value={config.sellerCity} onChange={set('sellerCity')}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder="Ahmedabad" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">State</label>
+              <input type="text" value={config.sellerState} onChange={set('sellerState')}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder="Gujarat" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Pincode</label>
+              <input type="text" value={config.sellerPincode} onChange={set('sellerPincode')}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder="380015" />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+                <Phone size={13} /> Seller Phone
+              </label>
+              <input type="tel" value={config.sellerPhone} onChange={set('sellerPhone')}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder="9313597170" />
+            </div>
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+                <Phone size={13} /> Customer Care Number
+              </label>
+              <input type="tel" value={config.customerCarePhone} onChange={set('customerCarePhone')}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder="1800-123-4567" />
+            </div>
           </div>
         </div>
       </section>

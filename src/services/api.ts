@@ -1,4 +1,16 @@
-import axios, { type AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
+import axios, { type AxiosError, type AxiosResponse, type InternalAxiosRequestConfig, isAxiosError } from 'axios'
+
+/** Extracts the human-readable error message from an API error response */
+export const apiErrorMessage = (err: unknown, fallback = 'Something went wrong'): string => {
+  if (isAxiosError(err)) {
+    const data = err.response?.data as { message?: string | string[] } | undefined
+    if (data?.message) {
+      return Array.isArray(data.message) ? data.message.join(', ') : data.message
+    }
+  }
+  if (err instanceof Error) return err.message
+  return fallback
+}
 import baseUrl from '../config'
 import { TOKEN_KEY } from '../hooks/useAuth'
 

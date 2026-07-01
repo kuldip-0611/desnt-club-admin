@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../services/api'
 import type { ReactElement } from 'react'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -27,7 +28,7 @@ const ProductCategories = (): ReactElement => {
       queryClient.invalidateQueries({ queryKey: ['admin-product-categories'] })
       toast.success('Category deleted')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Delete failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Delete failed')),
   })
 
   const toggleMutation = useMutation({
@@ -36,7 +37,7 @@ const ProductCategories = (): ReactElement => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-product-categories'] })
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Update failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Update failed')),
   })
 
   const handleDelete = (c: ProductCategory) => {

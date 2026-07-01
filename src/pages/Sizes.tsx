@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../services/api'
 import type { ReactElement } from 'react'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -29,7 +30,7 @@ const Sizes = (): ReactElement => {
       queryClient.invalidateQueries({ queryKey: ['admin-sizes'] })
       toast.success('Size deleted')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Delete failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Delete failed')),
   })
 
   const toggleMutation = useMutation({
@@ -38,7 +39,7 @@ const Sizes = (): ReactElement => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-sizes'] })
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Update failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Update failed')),
   })
 
   const handleDelete = (s: Size) => {

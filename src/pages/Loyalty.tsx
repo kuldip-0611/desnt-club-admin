@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tansta
 import { toast } from 'react-toastify'
 import { Settings, Users } from 'lucide-react'
 import api from '../services/api'
+import { apiErrorMessage } from '../services/api'
 import { adjustUserLoyalty, getLoyaltySettings, updateLoyaltySettings } from '../services/users'
 import type { LoyaltySettings } from '../services/users'
 import ListLoader from '../components/ui/ListLoader'
@@ -257,7 +258,7 @@ const Loyalty = (): ReactElement => {
       setAdjustNote('')
       queryClient.invalidateQueries({ queryKey: ['admin-loyalty-list'] })
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Adjustment failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Adjustment failed')),
   })
 
   const items = data?.items ?? []

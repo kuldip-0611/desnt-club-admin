@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../services/api'
 import type { ReactElement } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -65,7 +66,7 @@ const SizeForm = (): ReactElement => {
       toast.success('Size created')
       navigate('/dashboard/sizes')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Save failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Save failed')),
   })
 
   const updateMutation = useMutation({
@@ -77,7 +78,7 @@ const SizeForm = (): ReactElement => {
       toast.success('Size saved')
       navigate('/dashboard/sizes')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Save failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Save failed')),
   })
 
   const buildMeasurements = (attrList: MeasurementAttribute[]) =>

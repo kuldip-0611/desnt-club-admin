@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../services/api'
 import type { ReactElement } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Field, Form, Formik, ErrorMessage } from 'formik'
@@ -41,7 +42,7 @@ const FabricForm = (): ReactElement => {
       toast.success('Fabric created')
       navigate('/dashboard/fabrics')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Save failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Save failed')),
   })
 
   const updateMutation = useMutation({
@@ -53,7 +54,7 @@ const FabricForm = (): ReactElement => {
       toast.success('Saved')
       navigate('/dashboard/fabrics')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Save failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Save failed')),
   })
 
   if (!isCreate && isLoading) {

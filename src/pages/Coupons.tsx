@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '../services/api'
 import type { ReactElement } from 'react'
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -5,7 +6,6 @@ import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import DataTable, { type DataTableColumn } from '../components/ui/DataTable'
-import FilterBar from '../components/ui/FilterBar'
 import KpiCard from '../components/ui/KpiCard'
 import ListLoader from '../components/ui/ListLoader'
 import { deleteCoupon, listCoupons, updateCoupon } from '../services/coupons'
@@ -61,7 +61,7 @@ const Coupons = (): ReactElement => {
       queryClient.invalidateQueries({ queryKey: ['admin-coupons'] })
       toast.success('Coupon deleted')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Delete failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Delete failed')),
   })
 
   const toggleMutation = useMutation({
@@ -71,7 +71,7 @@ const Coupons = (): ReactElement => {
       queryClient.invalidateQueries({ queryKey: ['admin-coupons'] })
       toast.success('Coupon updated')
     },
-    onError: (err: Error) => toast.error(err.message ?? 'Update failed'),
+    onError: (err: unknown) => toast.error(apiErrorMessage(err, 'Update failed')),
   })
 
   const handleDelete = (c: Coupon) => {
@@ -212,11 +212,14 @@ const Coupons = (): ReactElement => {
         <KpiCard label="Active" value={stats.active} tone="success" />
       </div>
 
-      <FilterBar
-        searchId="coupon-search"
-        searchPlaceholder="Search by code…"
-        searchValue={search}
-        onSearchChange={setSearch}
+      <input
+        id="coupon-search"
+        type="text"
+        placeholder="Search by code…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+        className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
       />
 
       {isLoading ? (

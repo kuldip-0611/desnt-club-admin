@@ -19,6 +19,7 @@ import Sizes from './pages/Sizes'
 import UserGroups from './pages/UserGroups'
 import Users from './pages/Users'
 import Orders from './pages/Orders'
+import OrderDetail from './pages/OrderDetail'
 import Returns from './pages/Returns'
 import ReturnDetail from './pages/ReturnDetail'
 import Inventory from './pages/Inventory'
@@ -30,6 +31,7 @@ import Bundles from './pages/Bundles'
 import Loyalty from './pages/Loyalty'
 import Reviews from './pages/Reviews'
 import GiftCards from './pages/GiftCards'
+import AuditLogs from './pages/AuditLogs'
 import StoreSettings from './pages/StoreSettings'
 import NotFound from './pages/NotFound'
 import ProtectedRoute from './routes/ProtectedRoute'
@@ -69,6 +71,7 @@ const App = (): ReactElement => (
         <Route path="/dashboard/users" element={<Users />} />
         <Route path="/dashboard/user-groups" element={<UserGroups />} />
         <Route path="/dashboard/orders" element={<Orders />} />
+        <Route path="/dashboard/orders/:id" element={<OrderDetail />} />
         <Route path="/dashboard/returns" element={<Returns />} />
         <Route path="/dashboard/returns/:id" element={<ReturnDetail />} />
         <Route path="/dashboard/inventory" element={<Inventory />} />
@@ -81,6 +84,7 @@ const App = (): ReactElement => (
         <Route path="/dashboard/loyalty" element={<Loyalty />} />
         <Route path="/dashboard/reviews" element={<Reviews />} />
         <Route path="/dashboard/gift-cards" element={<GiftCards />} />
+        <Route path="/dashboard/audit-logs" element={<AuditLogs />} />
       </Route>
     </Route>
     <Route path="*" element={<NotFound />} />
