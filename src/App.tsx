@@ -28,6 +28,7 @@ import FlashSales from './pages/FlashSales'
 import Broadcasts from './pages/Broadcasts'
 import Analytics from './pages/Analytics'
 import Bundles from './pages/Bundles'
+import Combos from './pages/Combos'
 import Loyalty from './pages/Loyalty'
 import Reviews from './pages/Reviews'
 import GiftCards from './pages/GiftCards'
@@ -81,6 +82,7 @@ const App = (): ReactElement => (
         <Route path="/dashboard/broadcasts" element={<Broadcasts />} />
         <Route path="/dashboard/analytics" element={<Analytics />} />
         <Route path="/dashboard/bundles" element={<Bundles />} />
+        <Route path="/dashboard/combos" element={<Combos />} />
         <Route path="/dashboard/loyalty" element={<Loyalty />} />
         <Route path="/dashboard/reviews" element={<Reviews />} />
         <Route path="/dashboard/gift-cards" element={<GiftCards />} />

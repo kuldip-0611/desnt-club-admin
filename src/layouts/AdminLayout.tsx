@@ -133,6 +133,7 @@ const AdminLayout = (): ReactElement => {
         { to: '/dashboard/coupons', label: 'Coupons', icon: <TicketPercent size={18} />, matchPrefix: '/dashboard/coupons' },
         { to: '/dashboard/flash-sales', label: 'Flash Sales', icon: <Zap size={18} />, matchPrefix: '/dashboard/flash-sales' },
         { to: '/dashboard/bundles', label: 'Bundles', icon: <Package2 size={18} />, matchPrefix: '/dashboard/bundles' },
+        { to: '/dashboard/combos', label: 'Combos', icon: <Layers size={18} />, matchPrefix: '/dashboard/combos' },
         { to: '/dashboard/loyalty', label: 'Loyalty', icon: <Star size={18} />, matchPrefix: '/dashboard/loyalty' },
         { to: '/dashboard/reviews', label: 'Reviews', icon: <Star size={18} />, matchPrefix: '/dashboard/reviews' },
         { to: '/dashboard/gift-cards', label: 'Gift Cards', icon: <Gift size={18} />, matchPrefix: '/dashboard/gift-cards' },
